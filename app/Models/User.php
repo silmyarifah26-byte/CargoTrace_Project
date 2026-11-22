@@ -31,6 +31,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class, 'customer_id');
