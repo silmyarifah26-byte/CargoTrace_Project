@@ -5,6 +5,7 @@ use App\Http\Controllers\ShipmentController;
 use App\Models\AuditLog;
 use App\Models\Carrier;
 use App\Models\Location;
+use App\Models\Notification;
 use App\Models\Shipment;
 use App\Models\ShipmentException;
 use Illuminate\Http\Request;
@@ -104,7 +105,62 @@ Route::middleware('auth')->group(function () {
         ));
     })->name('dashboard');
 
-    Route::get('/notifications', fn () => view('placeholder', ['title' => 'Notifications']))->name('notifications.index');
+    Route::get('/notifications', function (Request $request) {
+        $user = $request->user();
+        $filter = $request->query('filter', 'all');
+
+        $baseQuery = Notification::query()
+            ->with('shipment')
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+                if ($user->role === 'customer') {
+                    $query->orWhereHas('shipment', fn ($q) => $q->where('customer_id', $user->id));
+                }
+            });
+
+        $unreadCount = (clone $baseQuery)->whereNull('read_at')->count();
+        $totalCount = (clone $baseQuery)->count();
+
+        $notifications = (clone $baseQuery)
+            ->when($filter === 'unread', fn ($q) => $q->whereNull('read_at'))
+            ->when($filter === 'read', fn ($q) => $q->whereNotNull('read_at'))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('notifications.index', compact(
+            'notifications',
+            'unreadCount',
+            'totalCount',
+            'filter'
+        ));
+    })->name('notifications.index');
+
+    Route::patch('/notifications/{notification}/read', function (Request $request, Notification $notification) {
+        $user = $request->user();
+
+        if ($notification->user_id !== $user->id) {
+            abort(403);
+        }
+
+        if (is_null($notification->read_at)) {
+            $notification->update(['read_at' => now()]);
+        }
+
+        return back()->with('success', 'Notifikasi ditandai sebagai sudah dibaca.');
+    })->name('notifications.read');
+
+    Route::patch('/notifications/read-all', function (Request $request) {
+        $user = $request->user();
+
+        Notification::query()
+            ->where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return back()->with('success', 'Semua notifikasi berhasil ditandai dibaca.');
+    })->name('notifications.read-all');
 
     Route::get('/shipments', [ShipmentController::class, 'index'])->name('shipments.index');
     Route::get('/shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
