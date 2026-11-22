@@ -3,6 +3,8 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ShipmentController;
 use App\Models\AuditLog;
+use App\Models\Carrier;
+use App\Models\Location;
 use App\Models\ShipmentException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -52,7 +54,93 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/master', fn () => view('placeholder', ['title' => 'Carriers & Locations']))->name('master.index');
+        Route::get('/master', function (Request $request) {
+            $carrierSearch = trim((string) $request->query('carrier_q', ''));
+            $locationSearch = trim((string) $request->query('location_q', ''));
+
+            $carriers = Carrier::withCount('shipments')
+                ->when($carrierSearch !== '', function ($query) use ($carrierSearch) {
+                    $query->where(function ($sub) use ($carrierSearch) {
+                        $sub->where('code', 'like', "%{$carrierSearch}%")
+                            ->orWhere('name', 'like', "%{$carrierSearch}%")
+                            ->orWhere('contact_email', 'like', "%{$carrierSearch}%");
+                    });
+                })
+                ->orderBy('code')
+                ->get();
+
+            $locations = Location::query()
+                ->when($locationSearch !== '', function ($query) use ($locationSearch) {
+                    $query->where(function ($sub) use ($locationSearch) {
+                        $sub->where('code', 'like', "%{$locationSearch}%")
+                            ->orWhere('name', 'like', "%{$locationSearch}%")
+                            ->orWhere('city', 'like', "%{$locationSearch}%")
+                            ->orWhere('country', 'like', "%{$locationSearch}%");
+                    });
+                })
+                ->orderBy('country')
+                ->orderBy('name')
+                ->paginate(20, ['*'], 'locations_page')
+                ->withQueryString();
+
+            $totalCarriers = Carrier::count();
+            $activeCarriers = Carrier::where('is_active', true)->count();
+            $totalLocations = Location::count();
+
+            return view('master.index', compact(
+                'carriers',
+                'locations',
+                'carrierSearch',
+                'locationSearch',
+                'totalCarriers',
+                'activeCarriers',
+                'totalLocations'
+            ));
+        })->name('master.index');
+
+        Route::post('/master/carriers', function (Request $request) {
+            $validated = $request->validate([
+                'code' => ['required', 'string', 'max:16', 'unique:carriers,code'],
+                'name' => ['required', 'string', 'max:150'],
+                'contact_email' => ['nullable', 'email', 'max:150'],
+                'contact_phone' => ['nullable', 'string', 'max:40'],
+                'is_active' => ['nullable', 'boolean'],
+            ]);
+
+            Carrier::create([
+                'code' => strtoupper(trim($validated['code'])),
+                'name' => trim($validated['name']),
+                'contact_email' => $validated['contact_email'] ?? null,
+                'contact_phone' => $validated['contact_phone'] ?? null,
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+
+            return redirect()->route('master.index')
+                ->with('success', 'Carrier baru berhasil ditambahkan.');
+        })->name('master.carriers.store');
+
+        Route::post('/master/locations', function (Request $request) {
+            $validated = $request->validate([
+                'code' => ['required', 'string', 'max:16', 'unique:locations,code'],
+                'name' => ['required', 'string', 'max:180'],
+                'city' => ['required', 'string', 'max:120'],
+                'country' => ['required', 'string', 'max:120'],
+                'latitude' => ['required', 'numeric', 'between:-90,90'],
+                'longitude' => ['required', 'numeric', 'between:-180,180'],
+            ]);
+
+            Location::create([
+                'code' => strtoupper(trim($validated['code'])),
+                'name' => trim($validated['name']),
+                'city' => trim($validated['city']),
+                'country' => trim($validated['country']),
+                'latitude' => round((float) $validated['latitude'], 7),
+                'longitude' => round((float) $validated['longitude'], 7),
+            ]);
+
+            return redirect()->route('master.index')
+                ->with('success', 'Pelabuhan baru berhasil ditambahkan ke master lokasi.');
+        })->name('master.locations.store');
 
         Route::get('/audit-logs', function () {
             $auditLogs = AuditLog::with('actor')
