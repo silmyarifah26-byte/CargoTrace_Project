@@ -9,24 +9,29 @@
             <span class="inline-block px-2.5 py-1 text-xs font-semibold rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
                 CargoTrace Platform
             </span>
-            <h2 class="mt-4 text-2xl font-bold leading-snug">Global Shipment Visibility & Tracking</h2>
+            <h2 class="mt-4 text-2xl font-bold leading-snug">Global Shipment Visibility &amp; Tracking</h2>
             <p class="mt-2 text-sm text-slate-300">
                 Monitor shipment lifecycle, chronological tracking timelines, route maps, delay thresholds (12h / 18h / 24h), and operational exceptions.
             </p>
         </div>
 
-        <div class="mt-8 pt-6 border-t border-slate-800 text-xs text-slate-300 space-y-1.5">
-            <p class="font-semibold text-white">Demo Accounts (password: password123)</p>
-            <p><span class="text-sky-300">Admin:</span> admin@cargotrace.test</p>
-            <p><span class="text-sky-300">Operator:</span> operator@cargotrace.test</p>
-            <p><span class="text-sky-300">Customer 1:</span> customer1@cargotrace.test</p>
-            <p><span class="text-sky-300">Customer 2:</span> customer2@cargotrace.test</p>
+        <div class="mt-8 pt-6 border-t border-slate-800 text-xs text-slate-300 space-y-2">
+            <p class="font-semibold text-white">Authorized Workspace Access</p>
+            <p class="text-slate-400">
+                Role-based portal for Shipment Administrators, Operations Teams, and Registered Customers.
+            </p>
         </div>
     </div>
 
     <div class="p-8">
         <h3 class="text-xl font-bold text-slate-900">Sign in to your account</h3>
         <p class="mt-1 text-xs text-slate-500">Enter your credentials to access your workspace.</p>
+
+        @if ($errors->any())
+            <div class="mt-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                {{ $errors->first() }}
+            </div>
+        @endif
 
         <form method="POST" action="{{ route('login.submit') }}" class="mt-6 space-y-4">
             @csrf

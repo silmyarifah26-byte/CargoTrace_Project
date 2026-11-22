@@ -2,7 +2,66 @@
 
 @section('title', 'Shipment Timeline — ' . ($shipment->shipment_number ?? ('#' . $shipment->id)))
 
+@push('styles')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>
+    #maritime-route-map {
+        height: 360px;
+        width: 100%;
+        border-radius: 0.75rem;
+        z-index: 1;
+        position: relative;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    #maritime-route-map .leaflet-container {
+        cursor: grab;
+        touch-action: none;
+    }
+    #maritime-route-map .leaflet-container:active {
+        cursor: grabbing;
+    }
+</style>
+@endpush
+
 @section('content')
+@php
+    $origin = $shipment->originLocation;
+    $destination = $shipment->destinationLocation;
+
+    $routePoints = [];
+    if ($origin && $origin->latitude !== null && $origin->longitude !== null) {
+        $routePoints[] = [
+            'label' => 'Origin Port: ' . $origin->name . ($origin->city ? ' (' . $origin->city . ')' : ''),
+            'role' => 'ORIGIN',
+            'lat' => (float) $origin->latitude,
+            'lng' => (float) $origin->longitude,
+        ];
+    }
+
+    foreach ($shipment->trackingEvents as $ev) {
+        $evLat = $ev->latitude ?? $ev->location?->latitude;
+        $evLng = $ev->longitude ?? $ev->location?->longitude;
+        if ($evLat !== null && $evLng !== null) {
+            $routePoints[] = [
+                'label' => ($ev->location_label ?? $ev->location?->name ?? 'Checkpoint') . ' — ' . str_replace('_', ' ', (string) $ev->status),
+                'role' => 'EVENT',
+                'lat' => (float) $evLat,
+                'lng' => (float) $evLng,
+            ];
+        }
+    }
+
+    if ($destination && $destination->latitude !== null && $destination->longitude !== null) {
+        $routePoints[] = [
+            'label' => 'Destination Port: ' . $destination->name . ($destination->city ? ' (' . $destination->city . ')' : ''),
+            'role' => 'DESTINATION',
+            'lat' => (float) $destination->latitude,
+            'lng' => (float) $destination->longitude,
+        ];
+    }
+@endphp
+
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -23,6 +82,9 @@
             <p class="text-sm text-slate-500 mt-1">
                 Current Status: <strong class="text-slate-800">{{ ucwords(str_replace('_', ' ', (string) ($shipment->current_status ?? '-'))) }}</strong>
                 &bull; SLA Group {{ $slaEval['group_code'] }} ({{ $thresholdHours }}h)
+                @if ($origin && $destination)
+                    &bull; Route: <strong class="text-slate-800">{{ $origin->name }} &rarr; {{ $destination->name }}</strong>
+                @endif
             </p>
         </div>
 
@@ -50,6 +112,53 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Maritime Route Map</h2>
+                        <p class="text-xs text-slate-500">Geser kiri/kanan/atas/bawah atau gunakan scroll &amp; tombol kontrol untuk zoom</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-600">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Origin
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-600"></span> Checkpoint
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span> Destination
+                        </span>
+                    </div>
+                </div>
+
+                @if (count($routePoints) > 0)
+                    <div class="relative">
+                        <div id="maritime-route-map" class="border border-slate-200"></div>
+
+                        <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                            <span>Tips: Klik &amp; tahan lalu geser ke kiri/kanan/atas/bawah, atau pakai tombol panah di kanan.</span>
+                            <div class="inline-flex items-center gap-1">
+                                <button type="button" id="pan-left-btn" title="Geser Kiri"
+                                        class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&larr; Kiri</button>
+                                <button type="button" id="pan-up-btn" title="Geser Atas"
+                                        class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&uarr; Atas</button>
+                                <button type="button" id="pan-down-btn" title="Geser Bawah"
+                                        class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&darr; Bawah</button>
+                                <button type="button" id="pan-right-btn" title="Geser Kanan"
+                                        class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">Kanan &rarr;</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="map-fallback-note" class="hidden p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                        Koordinat jalur pelayaran terdeteksi ({{ count($routePoints) }} titik). Hubungkan internet untuk merender peta tile OpenStreetMap.
+                    </div>
+                @else
+                    <div class="p-4 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                        Koordinat pelabuhan asal, checkpoint, atau tujuan belum tersedia untuk shipment ini.
+                    </div>
+                @endif
+            </div>
+
             <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between mb-4">
                     <div>
@@ -124,7 +233,7 @@
                         <select name="location_id" class="w-full rounded-lg border-slate-300 text-sm">
                             <option value="">-- Pilih Lokasi --</option>
                             @foreach ($locations as $loc)
-                                <option value="{{ $loc->id }}">{{ $loc->name }}</option>
+                                <option value="{{ $loc->id }}">{{ $loc->name }} ({{ $loc->country }})</option>
                             @endforeach
                         </select>
                     </div>
@@ -132,7 +241,7 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Deskripsi Event</label>
                         <textarea name="description" rows="3" required
-                                  placeholder="Contoh: Container cleared customs and dispatched to destination hub."
+                                  placeholder="Contoh: Vessel departed Port of Singapore toward Rotterdam."
                                   class="w-full rounded-lg border-slate-300 text-sm"></textarea>
                     </div>
 
@@ -156,6 +265,14 @@
                     <span class="font-medium text-slate-900">{{ $shipment->carrier?->name ?? '-' }}</span>
                 </div>
                 <div class="flex justify-between py-1.5 border-b border-slate-100">
+                    <span class="text-slate-500">Origin Port</span>
+                    <span class="font-medium text-slate-900 text-right">{{ $origin?->name ?? '-' }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100">
+                    <span class="text-slate-500">Destination Port</span>
+                    <span class="font-medium text-slate-900 text-right">{{ $destination?->name ?? '-' }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-slate-100">
                     <span class="text-slate-500">SLA Group</span>
                     <span class="font-medium text-slate-900">Group {{ $slaEval['group_code'] }} ({{ $thresholdHours }}h)</span>
                 </div>
@@ -168,3 +285,101 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@if (count($routePoints) > 0)
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const points = @json($routePoints);
+        const mapEl = document.getElementById('maritime-route-map');
+        const fallbackEl = document.getElementById('map-fallback-note');
+
+        if (!mapEl || !Array.isArray(points) || points.length === 0) return;
+
+        if (typeof window.L === 'undefined') {
+            mapEl.classList.add('hidden');
+            if (fallbackEl) fallbackEl.classList.remove('hidden');
+            return;
+        }
+
+        const map = L.map('maritime-route-map', {
+            dragging: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            touchZoom: true,
+            boxZoom: true,
+            keyboard: true,
+            zoomControl: true,
+            worldCopyJump: false,
+            inertia: true,
+            inertiaDeceleration: 1800,
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            minZoom: 2,
+            maxZoom: 18,
+            noWrap: true,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        map.dragging.enable();
+        map.scrollWheelZoom.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+
+        const latLngs = [];
+        const colorMap = {
+            ORIGIN: '#059669',
+            EVENT: '#0284c7',
+            DESTINATION: '#e11d48',
+        };
+
+        points.forEach(function (pt) {
+            const coord = [pt.lat, pt.lng];
+            latLngs.push(coord);
+
+            L.circleMarker(coord, {
+                radius: 7,
+                fillColor: colorMap[pt.role] || '#0284c7',
+                color: '#ffffff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.95,
+            }).addTo(map).bindPopup('<strong>' + pt.role + '</strong><br>' + pt.label);
+        });
+
+        if (latLngs.length > 1) {
+            const polyline = L.polyline(latLngs, {
+                color: '#0284c7',
+                weight: 3,
+                dashArray: '6, 6',
+                opacity: 0.85,
+            }).addTo(map);
+            map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+        } else {
+            map.setView(latLngs[0], 6);
+        }
+
+        const panStep = 140;
+        const bindPan = (id, dx, dy) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    map.panBy([dx, dy], { animate: true, duration: 0.25 });
+                });
+            }
+        };
+
+        bindPan('pan-left-btn', -panStep, 0);
+        bindPan('pan-right-btn', panStep, 0);
+        bindPan('pan-up-btn', 0, -panStep);
+        bindPan('pan-down-btn', 0, panStep);
+
+        setTimeout(function () {
+            map.invalidateSize();
+        }, 200);
+    });
+</script>
+@endif
+@endpush
