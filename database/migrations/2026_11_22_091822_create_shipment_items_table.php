@@ -6,20 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('shipment_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('shipment_id')->constrained('shipments')->cascadeOnDelete();
+            $table->string('sku', 60)->nullable();
+            $table->string('item_name', 150);
+            $table->unsignedInteger('quantity')->default(1);
+            $table->decimal('weight_kg', 12, 2)->default(0);
+            $table->decimal('declared_value', 14, 2)->default(0);
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('shipment_items');
