@@ -5,6 +5,7 @@ use App\Http\Controllers\ShipmentController;
 use App\Models\AuditLog;
 use App\Models\Carrier;
 use App\Models\Location;
+use App\Models\Shipment;
 use App\Models\ShipmentException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,7 +24,86 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/dashboard', fn () => view('placeholder', ['title' => 'Dashboard']))->name('dashboard');
+    Route::get('/dashboard', function (Request $request) {
+        $user = $request->user();
+
+        $shipmentQuery = Shipment::query();
+        if ($user->role === 'customer') {
+            $shipmentQuery->where('customer_id', $user->id);
+        }
+
+        $totalShipments = (clone $shipmentQuery)->count();
+        $deliveredCount = (clone $shipmentQuery)->where('current_status', 'delivered')->count();
+        $inTransitCount = max(0, $totalShipments - $deliveredCount);
+        $delayedCount = (clone $shipmentQuery)->where('is_delayed', true)->count();
+        $onTimeCount = max(0, $totalShipments - $delayedCount);
+        $onTimeRate = $totalShipments > 0 ? round(($onTimeCount / $totalShipments) * 100, 1) : 100.0;
+
+        $groupConfigs = [
+            'A' => 12,
+            'B' => 18,
+            'C' => 24,
+        ];
+
+        $slaGroups = [];
+        foreach ($groupConfigs as $code => $defaultThreshold) {
+            $groupBase = (clone $shipmentQuery)->where('group_code', $code);
+            $groupTotal = (clone $groupBase)->count();
+            $groupDelayed = (clone $groupBase)->where('is_delayed', true)->count();
+            $groupOnTime = max(0, $groupTotal - $groupDelayed);
+            $thresholdHours = (clone $groupBase)->value('delay_threshold_hours') ?? $defaultThreshold;
+            $complianceRate = $groupTotal > 0 ? round(($groupOnTime / $groupTotal) * 100, 1) : 100.0;
+
+            $slaGroups[] = [
+                'code' => $code,
+                'threshold_hours' => $thresholdHours,
+                'total' => $groupTotal,
+                'on_time' => $groupOnTime,
+                'delayed' => $groupDelayed,
+                'compliance_rate' => $complianceRate,
+            ];
+        }
+
+        $exceptionQuery = ShipmentException::query()->with('shipment');
+        if ($user->role === 'customer') {
+            $exceptionQuery->whereHas('shipment', fn ($q) => $q->where('customer_id', $user->id));
+        }
+
+        $openExceptionsCount = (clone $exceptionQuery)->where('status', 'open')->count();
+        $totalExceptionsCount = (clone $exceptionQuery)->count();
+
+        $recentShipments = (clone $shipmentQuery)
+            ->with(['carrier', 'originLocation', 'destinationLocation'])
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get();
+
+        $recentExceptions = (clone $exceptionQuery)
+            ->orderByDesc('detected_at')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        $activeCarriersCount = Carrier::where('is_active', true)->count();
+        $totalLocationsCount = Location::count();
+
+        return view('dashboard', compact(
+            'totalShipments',
+            'deliveredCount',
+            'inTransitCount',
+            'delayedCount',
+            'onTimeRate',
+            'slaGroups',
+            'openExceptionsCount',
+            'totalExceptionsCount',
+            'recentShipments',
+            'recentExceptions',
+            'activeCarriersCount',
+            'totalLocationsCount'
+        ));
+    })->name('dashboard');
+
     Route::get('/notifications', fn () => view('placeholder', ['title' => 'Notifications']))->name('notifications.index');
 
     Route::get('/shipments', [ShipmentController::class, 'index'])->name('shipments.index');
