@@ -1,0 +1,274 @@
+{
+  "info": {
+    "name": "Cargo_Trace REST API",
+    "description": "Postman collection for Cargo_Trace maritime shipment visibility and tracking API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth - Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Customer\",\n  \"email\": \"customer.test@cargotrace.local\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["register"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) {",
+              "  pm.collectionVariables.set('token', json.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@cargotrace.test\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["login"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Current User",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/user",
+          "host": ["{{baseUrl}}"],
+          "path": ["user"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["logout"]
+        }
+      }
+    },
+    {
+      "name": "Shipments - Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/shipments?page=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments"],
+          "query": [{ "key": "page", "value": "1" }]
+        }
+      }
+    },
+    {
+      "name": "Shipments - Store",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shipment_number\": \"CT-2026-DEMO-01\",\n  \"customer_id\": 2,\n  \"carrier_id\": 1,\n  \"origin_location_id\": 1,\n  \"destination_location_id\": 2,\n  \"group_code\": \"A\",\n  \"delay_threshold_hours\": 12,\n  \"cargo_type\": \"General Maritime Cargo\",\n  \"weight_kg\": 1800,\n  \"expected_arrival_at\": \"2026-11-28 10:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/shipments",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments"]
+        }
+      }
+    },
+    {
+      "name": "Shipments - Show",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/shipments/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments", "1"]
+        }
+      }
+    },
+    {
+      "name": "Tracking - Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/shipments/1/tracking",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments", "1", "tracking"]
+        }
+      }
+    },
+    {
+      "name": "Tracking - Store Event",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"IN_TRANSIT\",\n  \"location_id\": 1,\n  \"description\": \"Departed origin port.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/shipments/1/tracking",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments", "1", "tracking"]
+        }
+      }
+    },
+    {
+      "name": "Carriers - Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/carriers",
+          "host": ["{{baseUrl}}"],
+          "path": ["carriers"]
+        }
+      }
+    },
+    {
+      "name": "Locations - Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/locations",
+          "host": ["{{baseUrl}}"],
+          "path": ["locations"]
+        }
+      }
+    },
+    {
+      "name": "Exceptions - Index",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/shipments/1/exceptions",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments", "1", "exceptions"]
+        }
+      }
+    },
+    {
+      "name": "Exceptions - Store",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"exception_type\": \"WEATHER_DELAY\",\n  \"severity\": \"MEDIUM\",\n  \"notes\": \"Rough sea condition along route.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/shipments/1/exceptions",
+          "host": ["{{baseUrl}}"],
+          "path": ["shipments", "1", "exceptions"]
+        }
+      }
+    },
+    {
+      "name": "Exceptions - Update Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"resolved\",\n  \"notes\": \"Weather cleared and vessel resumed schedule.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/exceptions/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["exceptions", "1"]
+        }
+      }
+    }
+  ]
+}
