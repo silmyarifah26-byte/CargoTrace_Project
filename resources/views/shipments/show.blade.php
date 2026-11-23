@@ -60,6 +60,15 @@
             'lng' => (float) $destination->longitude,
         ];
     }
+
+    $currentStatusUpper = strtoupper((string) ($shipment->current_status ?? 'CREATED'));
+    $statusOptions = [
+        'CREATED' => 'Created',
+        'BOOKED' => 'Booked',
+        'PICKED_UP' => 'Picked Up',
+        'IN_TRANSIT' => 'In Transit',
+        'DELIVERED' => 'Delivered',
+    ];
 @endphp
 
 <div class="space-y-6">
@@ -80,7 +89,7 @@
                 @endif
             </div>
             <p class="text-sm text-slate-500 mt-1">
-                Current Status: <strong class="text-slate-800">{{ ucwords(str_replace('_', ' ', (string) ($shipment->current_status ?? '-'))) }}</strong>
+                Current Status: <strong class="text-slate-800">{{ ucwords(str_replace('_', ' ', $currentStatusUpper)) }}</strong>
                 &bull; SLA Group {{ $slaEval['group_code'] }} ({{ $thresholdHours }}h)
                 @if ($origin && $destination)
                     &bull; Route: <strong class="text-slate-800">{{ $origin->name }} &rarr; {{ $destination->name }}</strong>
@@ -163,19 +172,25 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-lg font-semibold text-slate-900">Chronological Tracking Events</h2>
-                        <p class="text-xs text-slate-500">Riwayat perpindahan status dan checkpoint pengiriman</p>
+                        <p class="text-xs text-slate-500">Riwayat perpindahan status dan checkpoint pengiriman (membedakan event normal dan exception)</p>
                     </div>
                 </div>
 
                 <div class="space-y-5 border-l-2 border-slate-200 ml-2 pl-5">
                     @forelse ($shipment->trackingEvents as $event)
+                        @php
+                            $isExceptionEvent = ($event->event_type === 'exception');
+                        @endphp
                         <div class="relative">
-                            <span class="w-3 h-3 rounded-full bg-sky-600 absolute -left-[27px] top-1.5 ring-4 ring-white"></span>
-                            <div class="text-xs text-slate-500">
-                                {{ optional($event->occurred_at)->format('d M Y H:i') ?? '-' }}
+                            <span class="w-3 h-3 rounded-full {{ $isExceptionEvent ? 'bg-rose-600' : 'bg-sky-600' }} absolute -left-[27px] top-1.5 ring-4 ring-white"></span>
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span>{{ optional($event->occurred_at)->format('d M Y H:i') ?? '-' }}</span>
                                 @if ($event->location_label || $event->location)
-                                    &bull; <span class="font-medium text-slate-700">{{ $event->location_label ?? $event->location?->name }}</span>
+                                    <span>&bull; <strong class="font-medium text-slate-700">{{ $event->location_label ?? $event->location?->name }}</strong></span>
                                 @endif
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $isExceptionEvent ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700' }}">
+                                    {{ $isExceptionEvent ? 'EXCEPTION EVENT' : 'NORMAL EVENT' }}
+                                </span>
                             </div>
                             <div class="text-sm font-bold text-slate-900 uppercase mt-0.5">
                                 {{ str_replace('_', ' ', (string) $event->status) }}
@@ -219,12 +234,11 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Status Baru</label>
                         <select name="status" required class="w-full rounded-lg border-slate-300 text-sm">
-                            <option value="booked">Booked</option>
-                            <option value="in_transit">In Transit</option>
-                            <option value="out_for_delivery">Out for Delivery</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="delayed">Delayed</option>
-                            <option value="exception">Exception</option>
+                            @foreach ($statusOptions as $val => $label)
+                                <option value="{{ $val }}" @selected(old('status', $currentStatusUpper) === $val)>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -233,16 +247,31 @@
                         <select name="location_id" class="w-full rounded-lg border-slate-300 text-sm">
                             <option value="">-- Pilih Lokasi --</option>
                             @foreach ($locations as $loc)
-                                <option value="{{ $loc->id }}">{{ $loc->name }} ({{ $loc->country }})</option>
+                                <option value="{{ $loc->id }}" @selected((string) old('location_id') === (string) $loc->id)>
+                                    {{ $loc->name }} ({{ $loc->country }})
+                                </option>
                             @endforeach
                         </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Waktu Kejadian (Opsional)</label>
+                        <input type="datetime-local" name="occurred_at" value="{{ old('occurred_at') }}"
+                               class="w-full rounded-lg border-slate-300 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Alasan Delay / Keterangan Tambahan (Opsional)</label>
+                        <input type="text" name="delay_reason" value="{{ old('delay_reason') }}"
+                               placeholder="Contoh: Weather delay / Customs hold"
+                               class="w-full rounded-lg border-slate-300 text-sm">
                     </div>
 
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Deskripsi Event</label>
                         <textarea name="description" rows="3" required
                                   placeholder="Contoh: Vessel departed Port of Singapore toward Rotterdam."
-                                  class="w-full rounded-lg border-slate-300 text-sm"></textarea>
+                                  class="w-full rounded-lg border-slate-300 text-sm">{{ old('description') }}</textarea>
                     </div>
 
                     <button type="submit"
@@ -280,6 +309,41 @@
                     <span class="text-slate-500">Delay Hours</span>
                     <span class="font-medium text-slate-900">{{ $overdueHours }}h</span>
                 </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-2.5 text-sm">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-semibold text-slate-900">External Weather Feed</h2>
+                    <span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-600">
+                        {{ strtoupper($destinationWeather['source'] ?? 'API') }}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-500">{{ $destinationWeather['location'] ?? '-' }}</p>
+
+                @if (!empty($destinationWeather['available']))
+                    <div class="pt-1 space-y-1.5">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Condition</span>
+                            <span class="font-medium text-slate-900 text-right">{{ $destinationWeather['summary'] }}</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="text-slate-500">Temperature</span>
+                            <span class="font-medium text-slate-900">{{ $destinationWeather['temperature_c'] }} &deg;C</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-500">Wind Speed</span>
+                            <span class="font-medium text-slate-900">{{ $destinationWeather['wind_speed_kmh'] }} km/h</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600">
+                        {{ $destinationWeather['summary'] ?? 'Data cuaca eksternal belum tersedia.' }}
+                    </div>
+                @endif
+
+                <p class="text-[11px] text-slate-400 pt-1">
+                    Informasi cuaca pendukung operasional; bukan klaim prediksi keterlambatan otomatis.
+                </p>
             </div>
         </div>
     </div>

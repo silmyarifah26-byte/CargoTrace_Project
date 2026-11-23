@@ -44,9 +44,9 @@ class ShipmentSlaService
         $overdueHours = 0;
 
         if ($referenceTime !== null) {
-            $deadline = CarbonImmutable::instance($referenceTime)->addHours($thresholdHours);
+            $deadline = CarbonImmutable::parse($referenceTime)->addHours($thresholdHours);
             $comparisonPoint = $isDelivered && $shipment->delivered_at !== null
-                ? CarbonImmutable::instance($shipment->delivered_at)
+                ? CarbonImmutable::parse($shipment->delivered_at)
                 : $now;
 
             if ($comparisonPoint->greaterThan($deadline)) {
@@ -98,18 +98,18 @@ class ShipmentSlaService
             return null;
         }
 
-        if ($overdueHours >= 24) {
-            return 'critical';
-        }
-
-        if ($overdueHours >= 12) {
+        if ($overdueHours > 24) {
             return 'high';
         }
 
-        if ($overdueHours > 0) {
+        if ($overdueHours > 6) {
             return 'medium';
         }
 
-        return $existingSeverity ?: 'medium';
+        if ($overdueHours > 0) {
+            return 'low';
+        }
+
+        return $existingSeverity ?: 'low';
     }
 }

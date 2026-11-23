@@ -10,10 +10,19 @@ use App\Models\ShipmentException;
 use App\Models\TrackingEvent;
 use App\Models\User;
 use Carbon\Carbon;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 
 class ShipmentLifecycleService
 {
+    private const ALLOWED_TRANSITIONS = [
+        'CREATED' => ['BOOKED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'],
+        'BOOKED' => ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED'],
+        'PICKED_UP' => ['IN_TRANSIT', 'DELIVERED'],
+        'IN_TRANSIT' => ['IN_TRANSIT', 'DELIVERED'],
+        'DELIVERED' => [],
+    ];
+
     public function __construct(
         private readonly ShipmentSlaService $slaService
     ) {}
@@ -27,26 +36,38 @@ class ShipmentLifecycleService
                 ? Carbon::parse($data['occurred_at'])
                 : now();
 
+            $latestEvent = $shipment->trackingEvents()
+                ->orderByDesc('occurred_at')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($latestEvent && $latestEvent->occurred_at && $occurredAt->lt(Carbon::parse($latestEvent->occurred_at))) {
+                throw new DomainException(
+                    'Waktu kejadian (occurred_at) tidak boleh lebih awal dari tracking event terakhir ('
+                    .Carbon::parse($latestEvent->occurred_at)->format('Y-m-d H:i').').'
+                );
+            }
+
             $location = ! empty($data['location_id'])
                 ? Location::find($data['location_id'])
                 : null;
 
-            $newStatus = trim((string) $data['status']);
-            $previousStatus = $shipment->current_status;
+            $newStatus = strtoupper(trim((string) $data['status']));
+            $previousStatus = strtoupper(trim((string) ($shipment->current_status ?: 'CREATED')));
             $previousLocationId = $shipment->origin_location_id;
 
-            $event = TrackingEvent::create([
-                'shipment_id' => $shipment->id,
-                'location_id' => $location?->id,
-                'created_by' => $actor->id,
-                'status' => $newStatus,
-                'event_type' => 'status_update',
-                'location_label' => $location?->name,
-                'latitude' => $location?->latitude ?? null,
-                'longitude' => $location?->longitude ?? null,
-                'description' => trim((string) $data['description']),
-                'occurred_at' => $occurredAt,
-            ]);
+            if ($previousStatus === 'DELIVERED' && $newStatus !== 'DELIVERED') {
+                throw new DomainException(
+                    'Shipment yang sudah berstatus DELIVERED tidak dapat dikembalikan ke status sebelumnya.'
+                );
+            }
+
+            $allowedNext = self::ALLOWED_TRANSITIONS[$previousStatus] ?? ['CREATED', 'BOOKED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
+            if ($newStatus !== $previousStatus && ! in_array($newStatus, $allowedNext, true)) {
+                throw new DomainException(
+                    "Transisi status dari {$previousStatus} ke {$newStatus} tidak diizinkan oleh aturan bisnis."
+                );
+            }
 
             $shipmentUpdates = [
                 'current_status' => $newStatus,
@@ -56,7 +77,7 @@ class ShipmentLifecycleService
                 ),
             ];
 
-            if (strtolower($newStatus) === 'delivered' && $shipment->delivered_at === null) {
+            if ($newStatus === 'DELIVERED' && $shipment->delivered_at === null) {
                 $shipmentUpdates['delivered_at'] = $occurredAt;
             }
 
@@ -73,6 +94,21 @@ class ShipmentLifecycleService
                 'delay_hours' => $slaResult['overdue_hours'],
                 'delay_severity' => $slaResult['severity'],
                 'delay_reason' => $delayReason,
+            ]);
+
+            $eventType = $slaResult['is_breached'] ? 'exception' : 'status_update';
+
+            $event = TrackingEvent::create([
+                'shipment_id' => $shipment->id,
+                'location_id' => $location?->id,
+                'created_by' => $actor->id,
+                'status' => $newStatus,
+                'event_type' => $eventType,
+                'location_label' => $location?->name,
+                'latitude' => $location?->latitude ?? null,
+                'longitude' => $location?->longitude ?? null,
+                'description' => trim((string) $data['description']),
+                'occurred_at' => $occurredAt,
             ]);
 
             if ($slaResult['is_breached']) {
@@ -131,6 +167,7 @@ class ShipmentLifecycleService
                     'tracking_event_id' => $event->id,
                     'previous_status' => $previousStatus,
                     'new_status' => $newStatus,
+                    'event_type' => $eventType,
                     'location_id' => $location?->id,
                     'previous_origin_location_id' => $previousLocationId,
                     'occurred_at' => $occurredAt->toIso8601String(),
