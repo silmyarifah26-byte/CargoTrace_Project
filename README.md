@@ -1,47 +1,227 @@
-# Cargo_Trace — Maritime Shipment & Port Tracking Platform
+# CargoTrace — Maritime Shipment & Port Tracking Platform
 
-**Cargo_Trace** is a Laravel-based maritime logistics and shipment visibility web application built to track shipment lifecycles, monitor SLA compliance across Groups A/B/C, visualize port and checkpoint routes on an interactive map, display external weather feeds, manage shipment exceptions and notifications, and expose REST API endpoints.
+![Laravel](https://img.shields.io/badge/Laravel-11.x%20%7C%2012.x-FF2D20?style=flat-square&logo=laravel)
+![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=flat-square&logo=php)
+![Tests](https://img.shields.io/badge/Tests-PASSED-16A34A?style=flat-square)
+![REST API](https://img.shields.io/badge/REST%20API-Bearer%20Token-0284C7?style=flat-square)
+![Maps](https://img.shields.io/badge/Maps-Leaflet.js%20%2B%20OSM-199900?style=flat-square)
 
-## Key Features
+**CargoTrace** is a web-based maritime logistics and shipment visibility platform built with **Laravel** for tracking consignments, enforcing status lifecycles, monitoring SLA delay thresholds, visualizing port and waypoint routes on an interactive map, retrieving external weather conditions, managing operational exceptions and notifications, and exposing JSON REST API endpoints.
 
-- **Shipment Lifecycle Management**: Tracks shipment states (`CREATED`, `BOOKED`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`) with chronological tracking events (`NORMAL EVENT` vs. `EXCEPTION EVENT`), role-based access control (`admin`, `operator`, `customer`), and audit logs.
-- **SLA Monitoring & Exception Handling**: Evaluates delay thresholds by SLA group (**Group A: 12h**, **Group B: 18h**, **Group C: 24h**), flags delayed shipments, and creates or updates shipment exceptions and notifications upon SLA breaches.
-- **Interactive Maritime Route Map**: Plots origin ports, tracking checkpoints, and destination ports with route polylines using **Leaflet.js** and OpenStreetMap tiles.
-- **External Weather Feed**: Fetches destination/port weather conditions from **Open-Meteo** through Laravel's `Http` client with caching, request timeout handling, and safe fallback messages when offline or unreachable.
-- **Bearer-Token REST API**: Provides JSON endpoints for authentication (`/api/register`, `/api/login`, `/api/logout`, `/api/user`), shipments (`/api/shipments`), tracking events (`/api/shipments/{id}/tracking`), carriers (`/api/carriers`), locations (`/api/locations`), and exceptions (`/api/exceptions/{id}`).
+## Table of Contents
 
-## Architecture
+1. [Project Overview & Problem Statement](#project-overview--problem-statement)
+2. [Key Features & Business Rules](#key-features--business-rules)
+3. [System Architecture & Database ERD](#system-architecture--database-erd)
+4. [Tech Stack](#tech-stack)
+5. [Local Installation & Setup Guide](#local-installation--setup-guide)
+6. [REST API Documentation](#rest-api-documentation)
+7. [Automated Testing](#automated-testing)
+8. [Known Limitations & Future Work](#known-limitations--future-work)
+9. [Author & Course Info](#author--course-info)
 
-- **Backend**: Laravel (MVC + Service Layer: `ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`)
-- **Database & Testing**: Relational migrations, seeders, and PHPUnit feature tests (`RefreshDatabase`)
-- **Frontend**: Blade templates, Tailwind CSS utility classes, and Leaflet.js
+## Project Overview & Problem Statement
 
-## Local Setup
+Maritime freight operations often face fragmented status updates, manual delay estimation, and late visibility into port or customs disruptions between origin and destination terminals. **CargoTrace** centralizes shipment tracking, deterministic delay and SLA evaluation, exception reporting, geospatial route visualization, and API integration within a structured Laravel application.
 
-1. Install dependencies:
-   `composer install`
-2. Copy the environment file and generate an application key:
-   `cp .env.example .env`
-   `php artisan key:generate`
-3. Run migrations and seed sample data:
-   `php artisan migrate --seed`
-4. Start the local server:
-   `php artisan serve`
+## Key Features & Business Rules
 
-## Running Tests
+### 1. Role-Based Access Control (RBAC)
+- **Administrator (`admin`)**: Full management access across carriers, port locations, users, shipments, tracking events, exceptions, and audit logs.
+- **Logistics Operator (`operator`)**: Creates shipments, records chronological tracking milestones, updates schedules/ETAs, and manages operational exceptions.
+- **Customer (`customer`)**: Views shipments assigned to their own account, inspects tracking timelines, route maps, weather feeds, and active alerts/exceptions.
 
-Run the automated test suite with:
+### 2. Shipment Lifecycle & Status Progression
+- Tracks shipment progress through core stages (`CREATED`, `BOOKED`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`) via `ShipmentLifecycleService`.
+- Enforces workflow validation so invalid transitions are rejected cleanly while valid checkpoints update the shipment's current state and timeline.
 
-`php artisan test`
+### 3. Chronological Tracking Timeline
+- Records tracking checkpoints with status, location/port reference, timestamp, description/notes, and reporter metadata.
+- Distinguishes standard progress milestones from exception-related events for clear operational traceability.
 
-## REST API Endpoints
+### 4. SLA Monitoring & Delay Evaluation
+- Evaluates delay thresholds and SLA compliance across groups (**Group A: 12h**, **Group B: 18h**, **Group C: 24h**) via `ShipmentSlaService`.
+- Calculates delay status and overdue hours when expected/estimated arrival thresholds are exceeded, updating shipment delay flags and severity indicators.
 
-- `POST /api/register` — Register a user account and receive a Bearer token
-- `POST /api/login` — Authenticate with email and password to receive a Bearer token
-- `POST /api/logout` — Revoke the current Bearer token (`Authorization: Bearer <token>`)
-- `GET /api/user` — Fetch the authenticated user's profile
-- `GET / POST /api/shipments` — List (paginated, role-filtered, searchable) or create shipments
-- `GET / PUT / PATCH / DELETE /api/shipments/{id}` — Retrieve, update, or delete a shipment
-- `GET / POST /api/shipments/{id}/tracking` — List or record shipment tracking events
-- `GET / POST /api/carriers` & `GET / POST /api/locations` — List or create carriers and port locations
-- `GET / POST /api/shipments/{id}/exceptions` & `PATCH /api/exceptions/{id}` — List, create, or update shipment exceptions
+### 5. Operational Exception & Notification Management
+- Supports reporting and resolving shipment exceptions (such as customs holds, weather delays, port congestion, damaged cargo, or documentation issues).
+- Tracks exception lifecycle states (`open`, `investigating`, `resolved`) with resolution timestamps and triggers notifications/audit records.
+
+### 6. Interactive Route Map (Leaflet.js + OpenStreetMap)
+- Renders origin terminals, intermediate checkpoints/waypoints, and destination ports on an interactive map using **Leaflet.js** and OpenStreetMap tiles.
+- Connects route coordinates with polylines and popups showing location and milestone details.
+
+### 7. External Weather Integration (Open-Meteo)
+- Fetches weather data for shipment/port coordinates from **Open-Meteo** via `MaritimeWeatherService` using Laravel's `Http` client.
+- Includes caching, request timeout handling, and safe fallback responses when coordinates are unavailable or external APIs cannot be reached.
+
+### 8. Analytics, Notifications & Audit Trail
+- Provides dashboard summaries, shipment filtering/search, notifications, and audit logs (`AuditLog`) recording key actions.
+
+## System Architecture & Database ERD
+
+CargoTrace follows a layered Laravel architecture separating routes, controllers (`Web` & `Api\CargoTraceApiController`), middleware (`api.auth`), domain services (`ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`), and Eloquent models.
+
+```mermaid
+erDiagram
+    USERS ||--o{ SHIPMENTS : owns
+    CARRIERS ||--o{ SHIPMENTS : operates
+    LOCATIONS ||--o{ SHIPMENTS : originates_from
+    LOCATIONS ||--o{ SHIPMENTS : arrives_at
+    SHIPMENTS ||--o{ TRACKING_EVENTS : has
+    LOCATIONS ||--o{ TRACKING_EVENTS : occurs_at
+    SHIPMENTS ||--o{ SHIPMENT_EXCEPTIONS : raises
+    USERS ||--o{ AUDIT_LOGS : performs
+
+    USERS {
+        bigint id PK
+        string name
+        string email
+        string role
+    }
+
+    CARRIERS {
+        bigint id PK
+        string code
+        string name
+        boolean is_active
+    }
+
+    LOCATIONS {
+        bigint id PK
+        string code
+        string name
+        string city
+        string country
+        decimal latitude
+        decimal longitude
+    }
+
+    SHIPMENTS {
+        bigint id PK
+        string shipment_number
+        bigint customer_id FK
+        bigint carrier_id FK
+        bigint origin_location_id FK
+        bigint destination_location_id FK
+        string group_code
+        int delay_threshold_hours
+        string current_status
+        boolean is_delayed
+        int delay_hours
+    }
+
+    TRACKING_EVENTS {
+        bigint id PK
+        bigint shipment_id FK
+        bigint location_id FK
+        string status
+        text description
+        datetime occurred_at
+    }
+
+    SHIPMENT_EXCEPTIONS {
+        bigint id PK
+        bigint shipment_id FK
+        bigint reported_by FK
+        string exception_type
+        string severity
+        string status
+        text notes
+    }
+
+    AUDIT_LOGS {
+        bigint id PK
+        bigint actor_id FK
+        string action
+        string entity_type
+        bigint entity_id
+    }
+```
+
+## Tech Stack
+
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | Laravel | Web routes, MVC controllers, service layer, Eloquent ORM, migrations & seeders |
+| **Language** | PHP 8.2+ | Backend application logic and test suite |
+| **API Authentication** | Bearer Token (`api.auth`) | Stateless token verification via `ApiBearerAuth` middleware and cache store |
+| **Database & Testing** | Relational DB / SQLite (`:memory:`) | Application persistence and PHPUnit `RefreshDatabase` feature tests |
+| **Frontend Styling** | Blade & Tailwind CSS | Web UI views, layout styling, and responsive components |
+| **Interactive Mapping** | Leaflet.js & OpenStreetMap | Port markers, checkpoints, and maritime route polylines |
+| **External Weather API** | Open-Meteo | Live/cached weather data with timeout and fallback handling |
+
+## Local Installation & Setup Guide
+
+1. Clone the repository and navigate into the project folder:
+   ```bash
+   git clone [https://github.com/silmyarifah26-byte/Cargo_Trace.git](https://github.com/silmyarifah26-byte/Cargo_Trace.git)
+   cd Cargo_Trace
+   ```
+2. Install PHP dependencies:
+   ```bash
+   composer install
+   ```
+3. Copy `.env.example` to `.env` and generate the application key:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+4. Configure your database connection in `.env`, then run migrations and seeders:
+   ```bash
+   php artisan migrate --seed
+   ```
+5. Start the local development server:
+   ```bash
+   php artisan serve
+   ```
+
+## REST API Documentation
+
+Protected endpoints require the header `Authorization: Bearer <token>` and `Accept: application/json`.
+
+### Authentication & User
+- `POST /api/register` — Register a new user and issue a Bearer token
+- `POST /api/login` — Authenticate with `email` and `password` to receive a Bearer token
+- `POST /api/logout` — Revoke the active Bearer token
+- `GET /api/user` — Return the authenticated user profile
+
+### Shipments & Tracking Events
+- `GET /api/shipments` — List shipments (supports pagination, `status`, `group_code`, and `search`; scoped by role)
+- `POST /api/shipments` — Create a new shipment (`admin` / `operator`)
+- `GET /api/shipments/{shipment}` — Retrieve shipment details, relations, and SLA evaluation
+- `PUT / PATCH /api/shipments/{shipment}` — Update shipment fields and re-evaluate SLA (`admin` / `operator`)
+- `DELETE /api/shipments/{shipment}` — Delete a shipment (`admin`)
+- `GET /api/shipments/{shipment}/tracking` — List chronological tracking events for a shipment
+- `POST /api/shipments/{shipment}/tracking` — Record a new tracking event (`admin` / `operator`)
+
+### Carriers, Locations & Exceptions
+- `GET /api/carriers` & `POST /api/carriers` — List or create carriers (`POST` requires `admin`)
+- `GET /api/locations` & `POST /api/locations` — List (with optional `search`) or create port/location records (`POST` requires `admin`)
+- `GET /api/shipments/{shipment}/exceptions` — List exceptions for a shipment
+- `POST /api/shipments/{shipment}/exceptions` — Create an exception for a shipment (`admin` / `operator`)
+- `PATCH /api/exceptions/{exception}` — Update exception status (`open`, `investigating`, `resolved`) and notes (`admin` / `operator`)
+
+## Automated Testing
+
+Run the PHPUnit / Pest feature and unit test suite with:
+
+```bash
+php artisan test
+```
+
+Key test coverage in `tests/Feature/CargoTraceApiAndLifecycleTest.php` includes:
+- Unauthenticated API rejection (`401`) and login token issuance (`200`)
+- Role-based shipment list scoping and single-shipment access control (`200` vs. `403`)
+- Tracking event creation, lifecycle status updates, SLA delay detection, and open exception creation
+
+## Known Limitations & Future Work
+
+- External map tiles and **Open-Meteo** weather lookups depend on network reachability (with fallback handling when offline or timed out).
+- Future enhancements can include real-time AIS vessel feeds, expanded webhook/notification channels, and deeper role/permission policies.
+
+## Author & Course Info
+
+- **Author**: Silmy Arifah (`silmyarifah26-byte`)
+- **Affiliation**: Information Systems — Universitas Malikussaleh
+- **Course Milestone**: Final Exam (UAS) Submission — December 1, 2026
