@@ -6,7 +6,7 @@
 ![REST API](https://img.shields.io/badge/REST%20API-Bearer%20Token-0284C7?style=flat-square)
 ![Maps](https://img.shields.io/badge/Maps-Leaflet.js%20%2B%20OSM-199900?style=flat-square)
 
-**CargoTrace** is a web-based maritime logistics and shipment visibility platform built with **Laravel** for tracking consignments, enforcing status lifecycles, monitoring SLA delay thresholds, visualizing port and waypoint routes on an interactive map, retrieving external weather conditions, managing operational exceptions and notifications, and exposing JSON REST API endpoints.
+**CargoTrace** is a web-based maritime logistics and shipment visibility platform built with **Laravel** for tracking consignments, enforcing status lifecycles, monitoring SLA delay thresholds, visualizing port and waypoint routes on an interactive map, retrieving external weather conditions, managing operational exceptions and notifications, switching web UI languages between **Indonesian (`id`)** and **English (`en`)**, and exposing JSON REST API endpoints.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@
 
 ## Project Overview & Problem Statement
 
-Maritime freight operations often face fragmented status updates, manual delay estimation, and late visibility into port or customs disruptions between origin and destination terminals. **CargoTrace** centralizes shipment tracking, deterministic delay and SLA evaluation, exception reporting, geospatial route visualization, and API integration within a structured Laravel application.
+Maritime freight operations often face fragmented status updates, manual delay estimation, and late visibility into port or customs disruptions between origin and destination terminals. **CargoTrace** centralizes shipment tracking, deterministic delay and SLA evaluation, exception reporting, geospatial route visualization, bilingual web UI support, and API integration within a structured Laravel application.
 
 ## Key Features & Business Rules
 
@@ -32,36 +32,39 @@ Maritime freight operations often face fragmented status updates, manual delay e
 - **Logistics Operator (`operator`)**: Creates shipments, records chronological tracking milestones, updates schedules/ETAs, and manages operational exceptions.
 - **Customer (`customer`)**: Views shipments assigned to their own account, inspects tracking timelines, route maps, weather feeds, and active alerts/exceptions.
 
-### 2. Shipment Lifecycle & Status Progression
+### 2. Bilingual Web Interface (Indonesian & English)
+- Supports switching between **Indonesian (`id`, default)** and **English (`en`)** on the web interface across guest/auth views and all authenticated roles (`admin`, `operator`, and `customer`) via `GET /lang/{locale}`, `SetLocale` web middleware, session state, and `lang/id.json` + `lang/en.json` translation dictionaries without altering REST API responses.
+
+### 3. Shipment Lifecycle & Status Progression
 - Tracks shipment progress through core stages (`CREATED`, `BOOKED`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`) via `ShipmentLifecycleService`.
 - Enforces workflow validation so invalid transitions are rejected cleanly while valid checkpoints update the shipment's current state and timeline.
 
-### 3. Chronological Tracking Timeline
+### 4. Chronological Tracking Timeline
 - Records tracking checkpoints with status, location/port reference, timestamp, description/notes, and reporter metadata.
 - Distinguishes standard progress milestones from exception-related events for clear operational traceability.
 
-### 4. SLA Monitoring & Delay Evaluation
+### 5. SLA Monitoring & Delay Evaluation
 - Evaluates delay thresholds and SLA compliance across groups (**Group A: 12h**, **Group B: 18h**, **Group C: 24h**) via `ShipmentSlaService`.
 - Calculates delay status and overdue hours when expected/estimated arrival thresholds are exceeded, updating shipment delay flags and severity indicators.
 
-### 5. Operational Exception & Notification Management
+### 6. Operational Exception & Notification Management
 - Supports reporting and resolving shipment exceptions (such as customs holds, weather delays, port congestion, damaged cargo, or documentation issues).
 - Tracks exception lifecycle states (`open`, `investigating`, `resolved`) with resolution timestamps and triggers notifications/audit records.
 
-### 6. Interactive Route Map (Leaflet.js + OpenStreetMap)
+### 7. Interactive Route Map (Leaflet.js + OpenStreetMap)
 - Renders origin terminals, intermediate checkpoints/waypoints, and destination ports on an interactive map using **Leaflet.js** and OpenStreetMap tiles.
 - Connects route coordinates with polylines and popups showing location and milestone details.
 
-### 7. External Weather Integration (Open-Meteo)
+### 8. External Weather Integration (Open-Meteo)
 - Fetches weather data for shipment/port coordinates from **Open-Meteo** via `MaritimeWeatherService` using Laravel's `Http` client.
 - Includes caching, request timeout handling, and safe fallback responses when coordinates are unavailable or external APIs cannot be reached.
 
-### 8. Analytics, Notifications & Audit Trail
+### 9. Analytics, Notifications & Audit Trail
 - Provides dashboard summaries, shipment filtering/search, notifications, and audit logs (`AuditLog`) recording key actions.
 
 ## System Architecture & Database ERD
 
-CargoTrace follows a layered Laravel architecture separating routes (`routes/api.php` registered in `bootstrap/app.php`), controllers (`Web` & `Api\CargoTraceApiController`), middleware (`api.auth` via `ApiBearerAuth`, storing SHA-256 token hashes in cache under `cargotrace:api_token:{hash}`), domain services (`ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`), and Eloquent models.
+CargoTrace follows a layered Laravel architecture separating routes (`routes/web.php` with `SetLocale` web middleware and `routes/api.php` registered in `bootstrap/app.php`), controllers (`Web` & `Api\CargoTraceApiController`), middleware (`api.auth` via `ApiBearerAuth`, storing SHA-256 token hashes in cache under `cargotrace:api_token:{hash}`), domain services (`ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`), and Eloquent models.
 
 ```mermaid
 erDiagram
@@ -146,7 +149,8 @@ erDiagram
 | :--- | :--- | :--- |
 | **Framework** | Laravel | Web routes, MVC controllers, service layer, Eloquent ORM, migrations & seeders |
 | **Language** | PHP 8.2+ | Backend application logic and test suite |
-| **API Authentication** | Bearer Token (`api.auth`) | SHA-256 token verification via `ApiBearerAuth` middleware and cache store (`cargotrace:api_token:{hash}`) |
+| **Localization** | `SetLocale` + JSON Lang (`id` / `en`) | Bilingual web UI switching across roles without affecting REST API responses |
+| **API Authentication** | Bearer Token (`api.auth`) | SHA-256 token lookup via `ApiBearerAuth` middleware and cache store (`cargotrace:api_token:{hash}`) |
 | **Database & Testing** | MySQL / SQLite (`:memory:`) | Application persistence and PHPUnit `RefreshDatabase` feature tests |
 | **Frontend Styling** | Blade & Tailwind CSS | Web UI views, layout styling, and responsive components |
 | **Interactive Mapping** | Leaflet.js & OpenStreetMap | Port markers, checkpoints, and maritime route polylines |
@@ -209,7 +213,7 @@ Login (`POST /api/login`):
 ```json
 {
   "email": "admin@cargotrace.test",
-  "password": "password"
+  "password": "password123"
 }
 ```
 
@@ -228,7 +232,7 @@ Create Shipment (`POST /api/shipments`):
 
 ## Hosting & Production Deployment
 
-1. Export the local MySQL database (`Cargo_Trace`) from XAMPP (`phpMyAdmin` or `mysqldump`) into a `.sql` backup file and import it into the production hosting database.
+1. Export the local MySQL database (`Cargo_Trace`) from XAMPP (`phpMyAdmin` or `mysqldump`) into a `.sql` backup file and import it into the hosting database.
 2. Upload the project files to the hosting server and configure `.env` directly on the server (never commit `.env` to Git):
    - Set `APP_ENV=production` and `APP_DEBUG=false`.
    - Set `APP_URL` and production `DB_*` credentials.
@@ -257,4 +261,3 @@ Key test coverage in `tests/Feature/CargoTraceApiAndLifecycleTest.php` includes:
 
 - **Author**: Silmy Arifah (`silmyarifah26-byte`)
 - **Affiliation**: Information Systems — Universitas Malikussaleh
-- **Course Milestone**: Final Exam (UAS) Submission — December 1, 2026
