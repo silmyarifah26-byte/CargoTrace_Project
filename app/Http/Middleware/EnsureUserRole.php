@@ -14,7 +14,7 @@ class EnsureUserRole
 
         if (! $user) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
+                return response()->json(['message' => 'Belum terautentikasi.'], 401);
             }
 
             return redirect()->route('login');
@@ -22,7 +22,7 @@ class EnsureUserRole
 
         if (! in_array($user->role, $roles, true)) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Forbidden. Insufficient role permissions.'], 403);
+                return response()->json(['message' => 'Akses ditolak. Peran tidak memiliki izin.'], 403);
             }
 
             abort(403, 'Anda tidak memiliki izin untuk mengakses halaman ini.');

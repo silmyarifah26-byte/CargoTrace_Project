@@ -89,6 +89,30 @@ Route::middleware('auth')->group(function () {
         $activeCarriersCount = Carrier::where('is_active', true)->count();
         $totalLocationsCount = Location::count();
 
+        // Pencarian nomor resi untuk customer (hanya muncul setelah resi dicari)
+        $resi = trim((string) $request->query('resi', ''));
+        $searchedResi = $request->has('resi');
+        $trackedShipment = null;
+
+        if ($searchedResi && $resi !== '') {
+            $trackedQuery = Shipment::with([
+                'carrier',
+                'originLocation',
+                'destinationLocation',
+                'trackingEvents' => function ($q) {
+                    $q->orderByDesc('occurred_at')->orderByDesc('id');
+                },
+            ]);
+
+            if ($user->role === 'customer') {
+                $trackedQuery->where('customer_id', $user->id);
+            }
+
+            $trackedShipment = $trackedQuery
+                ->where('shipment_number', 'like', '%' . $resi . '%')
+                ->first();
+        }
+
         return view('dashboard', compact(
             'totalShipments',
             'deliveredCount',
@@ -101,7 +125,10 @@ Route::middleware('auth')->group(function () {
             'recentShipments',
             'recentExceptions',
             'activeCarriersCount',
-            'totalLocationsCount'
+            'totalLocationsCount',
+            'resi',
+            'searchedResi',
+            'trackedShipment'
         ));
     })->name('dashboard');
 
