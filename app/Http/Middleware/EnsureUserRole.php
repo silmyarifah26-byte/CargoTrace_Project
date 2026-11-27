@@ -25,7 +25,7 @@ class EnsureUserRole
                 return response()->json(['message' => 'Akses ditolak. Peran tidak memiliki izin.'], 403);
             }
 
-            abort(403, 'Anda tidak memiliki izin untuk mengakses halaman ini.');
+            abort(403, __('You do not have permission to access this page.'));
         }
 
         return $next($request);

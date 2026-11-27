@@ -128,7 +128,7 @@ class ShipmentController extends Controller
             $targetLocation?->longitude !== null ? (float) $targetLocation->longitude : null,
             $targetLocation
                 ? ($targetLocation->name . ($targetLocation->city ? ' (' . $targetLocation->city . ')' : ''))
-                : 'Destination'
+                : __('Destination')
         );
 
         return view('shipments.show', [
@@ -145,7 +145,7 @@ class ShipmentController extends Controller
     public function storeEvent(Request $request, Shipment $shipment): RedirectResponse
     {
         if (! in_array($request->user()->role, ['admin', 'operator'], true)) {
-            abort(403, 'Anda tidak memiliki izin untuk memperbarui status pengiriman.');
+            abort(403, __('You do not have permission to update shipment status.'));
         }
 
         $validated = $request->validate([
@@ -164,7 +164,7 @@ class ShipmentController extends Controller
                 ->withErrors(['status' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Event pelacakan, status shipment, notifikasi, dan audit log berhasil diperbarui.');
+        return back()->with('success', __('Tracking event, shipment status, notifications, and audit log updated successfully.'));
     }
 
     private function authorizeShipmentAccess(Request $request, Shipment $shipment): void
@@ -176,7 +176,7 @@ class ShipmentController extends Controller
         }
 
         if ($shipment->customer_id !== $user->id) {
-            abort(403, 'Anda tidak memiliki izin untuk melihat pengiriman ini.');
+            abort(403, __('You do not have permission to view this shipment.'));
         }
     }
 }

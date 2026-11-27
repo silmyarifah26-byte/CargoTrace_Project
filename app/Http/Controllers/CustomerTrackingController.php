@@ -76,11 +76,11 @@ class CustomerTrackingController extends Controller
         }
 
         $stages = [
-            'CREATED'    => 'Dibuat',
-            'BOOKED'     => 'Dipesan',
-            'PICKED_UP'  => 'Dijemput',
-            'IN_TRANSIT' => 'Dalam Pengiriman',
-            'DELIVERED'  => 'Terkirim',
+            'CREATED'    => __('Created'),
+            'BOOKED'     => __('Booked'),
+            'PICKED_UP'  => __('Picked Up'),
+            'IN_TRANSIT' => __('In Transit'),
+            'DELIVERED'  => __('Delivered'),
         ];
 
         $currentStageIndex = $activeShipment

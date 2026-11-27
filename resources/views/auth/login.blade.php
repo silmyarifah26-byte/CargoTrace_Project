@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Masuk')
+@section('title', __('Sign In'))
 
 @section('content')
 <div class="min-h-screen w-full bg-slate-100 flex flex-col justify-between">
@@ -8,7 +8,7 @@
     <header class="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
         <a href="{{ url('/') }}" class="inline-flex items-center gap-2.5 text-slate-950 font-bold text-lg tracking-tight shrink-0">
             <span class="w-7 h-7 rounded-lg bg-slate-950 text-sky-400 flex items-center justify-center">
-                {{-- Ikon Jangkar Maritim --}}
+                {{-- Maritime Anchor Icon --}}
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="5" r="3"></circle>
                     <line x1="12" y1="22" x2="12" y2="8"></line>
@@ -17,17 +17,25 @@
             </span>
             <span>CargoTrace</span>
         </a>
+
+        @include('partials.language-switcher')
     </header>
 
-    {{-- Kartu Login Terpusat --}}
+    {{-- Centered Login Card --}}
     <main class="flex-1 flex items-center justify-center px-4 py-6">
         <div class="w-full max-w-md bg-white rounded-2xl border border-slate-200/90 shadow-sm p-7 sm:p-9">
             <div class="mb-6">
-                <h1 class="text-2xl font-bold text-slate-950">Masuk ke CargoTrace</h1>
+                <h1 class="text-2xl font-bold text-slate-950">{{ __('Sign in to CargoTrace') }}</h1>
                 <p class="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
-                    Silakan masukkan alamat email dan kata sandi Anda untuk mengakses dasbor pemantauan pengiriman.
+                    {{ __('Please enter your email address and password to access the shipment monitoring dashboard.') }}
                 </p>
             </div>
+
+            @if (session('success'))
+                <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800">
+                    {{ session('success') }}
+                </div>
+            @endif
 
             @if (session('status'))
                 <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs text-emerald-800">
@@ -50,7 +58,7 @@
 
                 <div>
                     <label for="email" class="block text-xs font-semibold text-slate-800 mb-1.5">
-                        Alamat Email <span class="text-rose-600">*</span>
+                        {{ __('Email Address') }} <span class="text-rose-600">*</span>
                     </label>
                     <input
                         id="email"
@@ -60,7 +68,7 @@
                         required
                         autofocus
                         autocomplete="username"
-                        placeholder="Masukkan Email Anda"
+                        placeholder="{{ __('Enter your email') }}"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15"
                     >
                 </div>
@@ -68,11 +76,11 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label for="password" class="block text-xs font-semibold text-slate-800">
-                            Kata Sandi <span class="text-rose-600">*</span>
+                            {{ __('Password') }} <span class="text-rose-600">*</span>
                         </label>
                         @if (\Illuminate\Support\Facades\Route::has('password.request'))
                             <a href="{{ route('password.request') }}" class="text-xs font-medium text-slate-700 hover:text-slate-950 hover:underline">
-                                Lupa kata sandi?
+                                {{ __('Forgot password?') }}
                             </a>
                         @endif
                     </div>
@@ -84,13 +92,13 @@
                             name="password"
                             required
                             autocomplete="current-password"
-                            placeholder="Masukkan kata sandi Anda"
+                            placeholder="{{ __('Enter your password') }}"
                             class="w-full rounded-lg border border-slate-300 bg-white pl-3.5 pr-11 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15"
                         >
                         <button
                             type="button"
                             id="toggle-password-btn"
-                            aria-label="Tampilkan atau sembunyikan kata sandi"
+                            aria-label="{{ __('Show or hide password') }}"
                             class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-900 focus:outline-none cursor-pointer"
                         >
                             <svg id="eye-off-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -114,7 +122,7 @@
                             name="remember"
                             class="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                         >
-                        <span>Ingat saya di perangkat ini</span>
+                        <span>{{ __('Remember me on this device') }}</span>
                     </label>
                 </div>
 
@@ -122,35 +130,35 @@
                     type="submit"
                     class="w-full rounded-lg bg-slate-950 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 text-sm transition cursor-pointer"
                 >
-                    Masuk
+                    {{ __('Sign In') }}
                 </button>
             </form>
 
             <div class="mt-5 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
                 @if (\Illuminate\Support\Facades\Route::has('register'))
                     <span>
-                        Belum memiliki akun?
+                        {{ __("Don't have an account?") }}
                         <a href="{{ route('register') }}" class="font-semibold text-slate-950 hover:underline">
-                            Daftar Akun Sekarang
+                            {{ __('Register Now') }}
                         </a>
                     </span>
                 @else
-                    <span>Akses peran Admin, Operator &amp; Customer dikelola oleh sistem.</span>
+                    <span>{{ __('Admin, Operator & Customer role access is managed by the system.') }}</span>
                 @endif
             </div>
         </div>
     </main>
 
-    {{-- Footer Tipis di Bagian Bawah --}}
+    {{-- Bottom Footer --}}
     <footer class="w-full bg-white border-t border-slate-200 px-6 py-3 text-xs text-slate-500">
         <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
             <div>
                 <span class="font-semibold text-slate-900">CargoTrace</span>
                 <span class="mx-1.5 text-slate-300">—</span>
-                <span>Sistem Pemantauan Pengiriman &amp; Rute Kargo</span>
+                <span>{{ __('Shipment & Cargo Route Monitoring System') }}</span>
             </div>
             <div>
-                Proyek Sistem Informasi &copy; {{ date('Y') }}
+                {{ __('Information Systems Project') }} &copy; {{ date('Y') }}
             </div>
         </div>
     </footer>

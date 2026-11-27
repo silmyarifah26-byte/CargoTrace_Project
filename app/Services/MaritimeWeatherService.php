@@ -15,7 +15,7 @@ class MaritimeWeatherService
                 'available' => false,
                 'source' => 'open-meteo',
                 'location' => $locationLabel,
-                'summary' => 'Koordinat lokasi belum tersedia untuk pengecekan cuaca.',
+                'summary' => __('Location coordinates are not available for weather check.'),
                 'temperature_c' => null,
                 'wind_speed_kmh' => null,
                 'weather_code' => null,
@@ -25,7 +25,8 @@ class MaritimeWeatherService
 
         $lat = round($latitude, 4);
         $lng = round($longitude, 4);
-        $cacheKey = "cargotrace:weather:{$lat}:{$lng}";
+        $locale = app()->getLocale();
+        $cacheKey = "cargotrace:weather:{$lat}:{$lng}:{$locale}";
 
         return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($lat, $lng, $locationLabel) {
             $baseUrl = rtrim((string) config('services.maritime_weather.url', 'https://api.open-meteo.com/v1/forecast'), '/');
@@ -45,7 +46,7 @@ class MaritimeWeatherService
                         'available' => false,
                         'source' => 'open-meteo',
                         'location' => $locationLabel,
-                        'summary' => 'Layanan cuaca eksternal merespons error (HTTP ' . $response->status() . ').',
+                        'summary' => __('External weather service returned an error (HTTP :status).', ['status' => $response->status()]),
                         'temperature_c' => null,
                         'wind_speed_kmh' => null,
                         'weather_code' => null,
@@ -59,7 +60,7 @@ class MaritimeWeatherService
                         'available' => false,
                         'source' => 'open-meteo',
                         'location' => $locationLabel,
-                        'summary' => 'Data cuaca eksternal kosong atau tidak lengkap.',
+                        'summary' => __('External weather data is empty or incomplete.'),
                         'temperature_c' => null,
                         'wind_speed_kmh' => null,
                         'weather_code' => null,
@@ -87,7 +88,7 @@ class MaritimeWeatherService
                     'available' => false,
                     'source' => 'open-meteo',
                     'location' => $locationLabel,
-                    'summary' => 'Layanan cuaca eksternal tidak dapat dijangkau atau mengalami timeout.',
+                    'summary' => __('External weather service is unreachable or timed out.'),
                     'temperature_c' => null,
                     'wind_speed_kmh' => null,
                     'weather_code' => null,
@@ -100,13 +101,13 @@ class MaritimeWeatherService
     private function describeWeatherCode(?int $code): string
     {
         return match (true) {
-            $code === null => 'Kondisi cuaca tidak tercatat',
-            $code === 0 => 'Cerah / visibilitas baik',
-            in_array($code, [1, 2, 3], true) => 'Sebagian berawan / kondisi operasional normal',
-            in_array($code, [45, 48], true) => 'Berkabut / jarak pandang terbatas',
-            in_array($code, [51, 53, 55, 61, 63, 65, 80, 81, 82], true) => 'Hujan / perhatikan kondisi dek & bongkar muat',
-            $code >= 95 => 'Badai petir / potensi gangguan operasional laut',
-            default => "Kode cuaca WMO #{$code}",
+            $code === null => __('Weather condition not recorded'),
+            $code === 0 => __('Clear / good visibility'),
+            in_array($code, [1, 2, 3], true) => __('Partly cloudy / normal operational conditions'),
+            in_array($code, [45, 48], true) => __('Foggy / limited visibility'),
+            in_array($code, [51, 53, 55, 61, 63, 65, 80, 81, 82], true) => __('Rain / monitor deck & cargo handling conditions'),
+            $code >= 95 => __('Thunderstorm / potential maritime disruption'),
+            default => __('WMO weather code #:code', ['code' => $code]),
         };
     }
 }

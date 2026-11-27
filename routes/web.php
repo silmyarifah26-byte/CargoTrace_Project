@@ -11,6 +11,16 @@ use App\Models\ShipmentException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/lang/{locale}', function (string $locale) {
+    if (! in_array($locale, ['id', 'en'], true)) {
+        abort(404);
+    }
+
+    session(['locale' => $locale]);
+
+    return redirect()->back();
+})->name('lang.switch');
+
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
@@ -175,7 +185,7 @@ Route::middleware('auth')->group(function () {
             $notification->update(['read_at' => now()]);
         }
 
-        return back()->with('success', 'Notifikasi ditandai sebagai sudah dibaca.');
+        return back()->with('success', __('Notification marked as read.'));
     })->name('notifications.read');
 
     Route::patch('/notifications/read-all', function (Request $request) {
@@ -186,7 +196,7 @@ Route::middleware('auth')->group(function () {
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
-        return back()->with('success', 'Semua notifikasi berhasil ditandai dibaca.');
+        return back()->with('success', __('All notifications marked as read.'));
     })->name('notifications.read-all');
 
     Route::get('/shipments', [ShipmentController::class, 'index'])->name('shipments.index');
@@ -212,7 +222,7 @@ Route::middleware('auth')->group(function () {
                 'resolved_at' => now(),
             ]);
 
-            return back()->with('success', 'Exception berhasil ditandai sebagai resolved.');
+            return back()->with('success', __('Exception successfully marked as resolved.'));
         })->name('exceptions.resolve');
     });
 
@@ -279,7 +289,7 @@ Route::middleware('auth')->group(function () {
             ]);
 
             return redirect()->route('master.index')
-                ->with('success', 'Carrier baru berhasil ditambahkan.');
+                ->with('success', __('New carrier added successfully.'));
         })->name('master.carriers.store');
 
         Route::post('/master/locations', function (Request $request) {
@@ -302,7 +312,7 @@ Route::middleware('auth')->group(function () {
             ]);
 
             return redirect()->route('master.index')
-                ->with('success', 'Pelabuhan baru berhasil ditambahkan ke master lokasi.');
+                ->with('success', __('New port added to master locations successfully.'));
         })->name('master.locations.store');
 
         Route::get('/audit-logs', function () {

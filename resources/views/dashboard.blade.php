@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Dasbor')
-@section('page-title', 'Dasbor')
+@section('title', __('Dashboard'))
+@section('page-title', __('Dashboard'))
 
 @push('styles')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
@@ -27,6 +27,13 @@
 
 @section('content')
 @php
+    $roleLabels = [
+        'admin' => __('Admin'),
+        'operator' => __('Logistics Operator'),
+        'customer' => __('Customer'),
+    ];
+    $currentRoleLabel = $roleLabels[auth()->user()->role] ?? strtoupper(auth()->user()->role);
+
     $mapCoords = [];
     if (!empty($trackedShipment)) {
         $origin = $trackedShipment->originLocation;
@@ -34,8 +41,9 @@
 
         if ($origin && $origin->latitude !== null && $origin->longitude !== null) {
             $mapCoords[] = [
-                'label' => 'Pelabuhan Asal: ' . $origin->name . ($origin->city ? ' (' . $origin->city . ')' : ''),
-                'role' => 'ASAL',
+                'label' => __('Origin Port') . ': ' . $origin->name . ($origin->city ? ' (' . $origin->city . ')' : ''),
+                'role' => 'ORIGIN',
+                'roleLabel' => __('ORIGIN'),
                 'lat' => (float) $origin->latitude,
                 'lng' => (float) $origin->longitude,
             ];
@@ -46,8 +54,9 @@
             $evLng = $ev->longitude ?? $ev->location?->longitude;
             if ($evLat !== null && $evLng !== null) {
                 $mapCoords[] = [
-                    'label' => ($ev->location_label ?? $ev->location_name ?? $ev->location?->name ?? 'Titik Pantau') . ' — ' . str_replace('_', ' ', (string) ($ev->event_type ?? $ev->status ?? 'Pelacakan')),
-                    'role' => 'TITIK PANTAU',
+                    'label' => ($ev->location_label ?? $ev->location_name ?? $ev->location?->name ?? __('Checkpoint')) . ' — ' . str_replace('_', ' ', (string) ($ev->event_type ?? $ev->status ?? __('Tracking'))),
+                    'role' => 'CHECKPOINT',
+                    'roleLabel' => __('CHECKPOINT'),
                     'lat' => (float) $evLat,
                     'lng' => (float) $evLng,
                 ];
@@ -56,8 +65,9 @@
 
         if ($destination && $destination->latitude !== null && $destination->longitude !== null) {
             $mapCoords[] = [
-                'label' => 'Pelabuhan Tujuan: ' . $destination->name . ($destination->city ? ' (' . $destination->city . ')' : ''),
-                'role' => 'TUJUAN',
+                'label' => __('Destination Port') . ': ' . $destination->name . ($destination->city ? ' (' . $destination->city . ')' : ''),
+                'role' => 'DESTINATION',
+                'roleLabel' => __('DESTINATION'),
                 'lat' => (float) $destination->latitude,
                 'lng' => (float) $destination->longitude,
             ];
@@ -65,44 +75,41 @@
     }
 
     $exceptionStatusLabels = [
-        'open' => 'TERBUKA',
-        'investigating' => 'INVESTIGASI',
-        'resolved' => 'SELESAI',
-        'closed' => 'DITUTUP',
+        'open' => __('OPEN'),
+        'investigating' => __('INVESTIGATING'),
+        'resolved' => __('RESOLVED'),
+        'closed' => __('CLOSED'),
     ];
 
     $exceptionTypeLabels = [
-        'WEATHER_DELAY' => 'Keterlambatan Cuaca',
-        'CUSTOMS_HOLD' => 'Penahanan Kepabeanan',
-        'DOCUMENTATION_ISSUE' => 'Kendala Dokumen',
-        'PORT_CONGESTION' => 'Kepadatan Pelabuhan',
-        'VESSEL_DELAY' => 'Keterlambatan Kapal',
-    ];
-
-    $exceptionNoteTranslations = [
-        'Heavy swell conditions in North Pacific corridor.' => 'Gelombang tinggi di jalur Pasifik Utara.',
-        'Phytosanitary certificate verification requested at transshipment port.' => 'Verifikasi sertifikat fitosanitari diminta di pelabuhan transit.',
-        'Bill of Lading consignee tax ID corrected prior to arrival.' => 'NPWP penerima pada Bill of Lading telah diperbaiki sebelum kedatangan.',
+        'WEATHER_DELAY' => __('Weather Delay'),
+        'CUSTOMS_HOLD' => __('Customs Hold'),
+        'DOCUMENTATION_ISSUE' => __('Documentation Issue'),
+        'PORT_CONGESTION' => __('Port Congestion'),
+        'VESSEL_DELAY' => __('Vessel Delay'),
+        'SLA_DELAY' => __('SLA Delay'),
     ];
 
     $shipmentStatusLabels = [
-        'CREATED' => 'DIBUAT',
-        'BOOKED' => 'TERJADWAL',
-        'IN_TRANSIT' => 'DALAM PERJALANAN',
-        'DELIVERED' => 'TERKIRIM',
-        'DELAYED' => 'TERLAMBAT',
-        'CANCELLED' => 'DIBATALKAN',
+        'CREATED' => __('CREATED'),
+        'BOOKED' => __('BOOKED'),
+        'PICKED_UP' => __('PICKED UP'),
+        'IN_TRANSIT' => __('IN TRANSIT'),
+        'OUT_FOR_DELIVERY' => __('OUT FOR DELIVERY'),
+        'DELIVERED' => __('DELIVERED'),
+        'DELAYED' => __('DELAYED'),
+        'CANCELLED' => __('CANCELLED'),
     ];
 @endphp
 
 <div class="space-y-6">
-    {{-- Kolom Masukkan Nomor Resi untuk Customer --}}
+    {{-- Customer Tracking Number Lookup --}}
     @if (auth()->user()->role === 'customer')
         <div class="bg-white rounded-xl border border-slate-200 p-5">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <div>
-                    <h2 class="text-base font-semibold text-slate-900">Lacak Paket / Cek Nomor Resi</h2>
-                    <p class="text-xs text-slate-500">Masukkan nomor resi pengiriman Anda untuk melihat posisi paket terkini, peta rute, dan riwayat pelacakan.</p>
+                    <h2 class="text-base font-semibold text-slate-900">{{ __('Track Package / Check Tracking Number') }}</h2>
+                    <p class="text-xs text-slate-500">{{ __('Enter your shipment tracking number to view the current package position, route map, and tracking history.') }}</p>
                 </div>
             </div>
 
@@ -111,30 +118,30 @@
                     type="text"
                     name="resi"
                     value="{{ $resi ?? '' }}"
-                    placeholder="Masukkan nomor resi (contoh: CT-2026-A001)"
+                    placeholder="{{ __('Enter tracking number (e.g., CT-2026-A001)') }}"
                     class="flex-1 rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-900"
                 >
                 <button
                     type="submit"
                     class="rounded-lg bg-slate-950 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 cursor-pointer"
                 >
-                    Lacak Paket
+                    {{ __('Track Package') }}
                 </button>
                 @if (!empty($resi))
                     <a
                         href="{{ route('dashboard') }}"
                         class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 text-center"
                     >
-                        Reset
+                        {{ __('Reset') }}
                     </a>
                 @endif
             </form>
 
-            {{-- Hasil Pelacakan Muncul Setelah Nomor Resi Dicari --}}
+            {{-- Tracking Result After Search --}}
             @if (!empty($searchedResi) && ($resi ?? '') !== '')
                 @if (!$trackedShipment)
                     <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800">
-                        Nomor resi <span class="font-mono font-semibold">{{ $resi }}</span> tidak ditemukan pada pengiriman akun Anda.
+                        {!! __('Tracking number :resi was not found in your account shipments.', ['resi' => '<span class="font-mono font-semibold">' . e($resi) . '</span>']) !!}
                     </div>
                 @else
                     @php
@@ -151,11 +158,11 @@
                     <div class="mt-5 pt-5 border-t border-slate-200 space-y-4">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div>
-                                <span class="text-xs text-slate-500">Nomor Resi:</span>
+                                <span class="text-xs text-slate-500">{{ __('Tracking Number') }}:</span>
                                 <span class="font-mono text-sm font-bold text-slate-900">{{ $trackedShipment->shipment_number }}</span>
                                 <span class="mx-2 text-slate-300">|</span>
                                 <span class="text-xs text-slate-600">
-                                    Posisi saat ini: <strong class="text-slate-900">{{ $posText }}</strong>
+                                    {{ __('Current position') }}: <strong class="text-slate-900">{{ $posText }}</strong>
                                 </span>
                             </div>
                             <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800">
@@ -168,30 +175,30 @@
                                 @if (count($mapCoords) > 0)
                                     <div id="customer-resi-map" class="border border-slate-200"></div>
                                     <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-                                        <span>Geser kiri/kanan/atas/bawah, gulir untuk perbesar/perkecil, atau pakai tombol geser.</span>
+                                        <span>{{ __('Drag left/right/up/down, scroll to zoom in/out, or use the pan buttons.') }}</span>
                                         <div class="inline-flex items-center gap-1">
-                                            <button type="button" id="resi-pan-left-btn" title="Geser Kiri"
-                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&larr; Kiri</button>
-                                            <button type="button" id="resi-pan-up-btn" title="Geser Atas"
-                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&uarr; Atas</button>
-                                            <button type="button" id="resi-pan-down-btn" title="Geser Bawah"
-                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&darr; Bawah</button>
-                                            <button type="button" id="resi-pan-right-btn" title="Geser Kanan"
-                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">Kanan &rarr;</button>
+                                            <button type="button" id="resi-pan-left-btn" title="{{ __('Pan Left') }}"
+                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&larr; {{ __('Left') }}</button>
+                                            <button type="button" id="resi-pan-up-btn" title="{{ __('Pan Up') }}"
+                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&uarr; {{ __('Up') }}</button>
+                                            <button type="button" id="resi-pan-down-btn" title="{{ __('Pan Down') }}"
+                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">&darr; {{ __('Down') }}</button>
+                                            <button type="button" id="resi-pan-right-btn" title="{{ __('Pan Right') }}"
+                                                    class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 font-semibold">{{ __('Right') }} &rarr;</button>
                                         </div>
                                     </div>
                                     <div id="resi-map-fallback-note" class="hidden mt-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                                        Koordinat rute terdeteksi ({{ count($mapCoords) }} titik). Hubungkan internet untuk memuat peta OpenStreetMap.
+                                        {{ __('Route coordinates detected (:count points). Connect to the internet to load OpenStreetMap tiles.', ['count' => count($mapCoords)]) }}
                                     </div>
                                 @else
                                     <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
-                                        Koordinat lokasi belum tersedia untuk pengiriman ini.
+                                        {{ __('Location coordinates are not yet available for this shipment.') }}
                                     </div>
                                 @endif
                             </div>
 
                             <div class="rounded-xl border border-slate-200 p-4 space-y-3 max-h-80 overflow-y-auto">
-                                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Riwayat Perjalanan</h3>
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Journey History') }}</h3>
                                 @forelse ($trackedShipment->trackingEvents as $ev)
                                     <div class="border-l-2 border-slate-400 pl-3 text-xs">
                                         <div class="font-semibold text-slate-900">{{ $ev->event_type ?? $ev->status }}</div>
@@ -201,7 +208,7 @@
                                         </div>
                                     </div>
                                 @empty
-                                    <p class="text-xs text-slate-500">Belum ada riwayat pelacakan.</p>
+                                    <p class="text-xs text-slate-500">{{ __('No tracking history yet.') }}</p>
                                 @endforelse
                             </div>
                         </div>
@@ -211,55 +218,55 @@
         </div>
     @endif
 
-    {{-- Ringkasan KPI Utama --}}
+    {{-- Key KPI Summary --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total Pengiriman</p>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Total Shipments') }}</p>
             <p class="mt-2 text-2xl font-bold text-slate-900">{{ $totalShipments }}</p>
             <p class="mt-1 text-xs text-slate-500">
-                {{ $inTransitCount }} dalam perjalanan • {{ $deliveredCount }} terkirim
+                {{ __(':in_transit in transit • :delivered delivered', ['in_transit' => $inTransitCount, 'delivered' => $deliveredCount]) }}
             </p>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Melewati SLA / Terlambat</p>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('SLA Breached / Delayed') }}</p>
             <p class="mt-2 text-2xl font-bold {{ $delayedCount > 0 ? 'text-rose-600' : 'text-emerald-600' }}">
                 {{ $delayedCount }}
             </p>
             <p class="mt-1 text-xs text-slate-500">
-                Tingkat tepat waktu: <span class="font-semibold text-slate-800">{{ $onTimeRate }}%</span>
+                {{ __('On-time rate') }}: <span class="font-semibold text-slate-800">{{ $onTimeRate }}%</span>
             </p>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Kendala Terbuka</p>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Open Exceptions') }}</p>
             <p class="mt-2 text-2xl font-bold {{ $openExceptionsCount > 0 ? 'text-amber-600' : 'text-slate-900' }}">
                 {{ $openExceptionsCount }}
             </p>
             <p class="mt-1 text-xs text-slate-500">
-                Total {{ $totalExceptionsCount }} kendala tercatat
+                {{ __('Total :count exceptions recorded', ['count' => $totalExceptionsCount]) }}
             </p>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Cakupan Jaringan</p>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Network Coverage') }}</p>
             <p class="mt-2 text-2xl font-bold text-slate-900">{{ $activeCarriersCount }} / {{ $totalLocationsCount }}</p>
             <p class="mt-1 text-xs text-slate-500">
-                Kurir aktif / Lokasi pelabuhan
+                {{ __('Active carriers / Port locations') }}
             </p>
         </div>
     </div>
 
-    {{-- Performa SLA Grup A / B / C (Khusus Admin & Operator) --}}
+    {{-- SLA Group A / B / C Performance (Admin & Operator Only) --}}
     @if (in_array(auth()->user()->role, ['admin', 'operator'], true))
         <div class="bg-white rounded-xl border border-slate-200 p-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                 <div>
-                    <h2 class="text-base font-semibold text-slate-900">Performa SLA per Grup</h2>
-                    <p class="text-xs text-slate-500">Ambang batas keterlambatan: Grup A (12j), Grup B (18j), Grup C (24j).</p>
+                    <h2 class="text-base font-semibold text-slate-900">{{ __('SLA Performance by Group') }}</h2>
+                    <p class="text-xs text-slate-500">{{ __('Delay thresholds: Group A (12h), Group B (18h), Group C (24h).') }}</p>
                 </div>
                 <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 shrink-0">
-                    Peran: {{ strtoupper(auth()->user()->role) }}
+                    {{ __('Role') }}: {{ strtoupper($currentRoleLabel) }}
                 </span>
             </div>
 
@@ -268,9 +275,9 @@
                     <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <span class="text-sm font-bold text-slate-900">Grup {{ $group['code'] }}</span>
+                                <span class="text-sm font-bold text-slate-900">{{ __('Group :code', ['code' => $group['code']]) }}</span>
                                 <span class="ml-2 rounded-md bg-white px-2 py-0.5 text-xs font-mono text-slate-600 border border-slate-200">
-                                    Batas {{ $group['threshold_hours'] }}j
+                                    {{ __('Limit :hoursh', ['hours' => $group['threshold_hours']]) }}
                                 </span>
                             </div>
                             <span class="text-sm font-bold {{ $group['delayed'] > 0 ? 'text-rose-600' : 'text-emerald-600' }}">
@@ -284,9 +291,9 @@
                         </div>
 
                         <div class="mt-3 flex items-center justify-between text-xs text-slate-600">
-                            <span>Total: <strong>{{ $group['total'] }}</strong></span>
-                            <span class="text-emerald-700">Tepat Waktu: <strong>{{ $group['on_time'] }}</strong></span>
-                            <span class="text-rose-700">Terlambat: <strong>{{ $group['delayed'] }}</strong></span>
+                            <span>{{ __('Total') }}: <strong>{{ $group['total'] }}</strong></span>
+                            <span class="text-emerald-700">{{ __('On Time') }}: <strong>{{ $group['on_time'] }}</strong></span>
+                            <span class="text-rose-700">{{ __('Delayed') }}: <strong>{{ $group['delayed'] }}</strong></span>
                         </div>
                     </div>
                 @endforeach
@@ -294,16 +301,16 @@
         </div>
     @endif
 
-    {{-- Daftar Pengiriman Terbaru & Kendala Terbaru --}}
+    {{-- Recent Shipments & Recent Exceptions --}}
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-6">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-base font-semibold text-slate-900">Pengiriman Terbaru</h2>
-                    <p class="text-xs text-slate-500">Pemantauan rute pelayaran, status SLA, dan estimasi tiba.</p>
+                    <h2 class="text-base font-semibold text-slate-900">{{ __('Recent Shipments') }}</h2>
+                    <p class="text-xs text-slate-500">{{ __('Sea route monitoring, SLA status, and estimated arrival.') }}</p>
                 </div>
                 <a href="{{ route('shipments.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-950 underline whitespace-nowrap shrink-0">
-                    Lihat semua &rarr;
+                    {{ __('View all') }} &rarr;
                 </a>
             </div>
 
@@ -311,11 +318,11 @@
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead>
                         <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50">
-                            <th class="px-3 py-2.5">Pengiriman</th>
-                            <th class="px-3 py-2.5">Rute Pelabuhan</th>
-                            <th class="px-3 py-2.5">Grup</th>
-                            <th class="px-3 py-2.5">Status</th>
-                            <th class="px-3 py-2.5">SLA</th>
+                            <th class="px-3 py-2.5">{{ __('Shipment') }}</th>
+                            <th class="px-3 py-2.5">{{ __('Port Route') }}</th>
+                            <th class="px-3 py-2.5">{{ __('Group') }}</th>
+                            <th class="px-3 py-2.5">{{ __('Status') }}</th>
+                            <th class="px-3 py-2.5">{{ __('SLA') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -336,11 +343,11 @@
                                     &rarr;
                                     <span class="font-semibold">{{ $shipment->destinationLocation->code ?? '-' }}</span>
                                     <div class="text-slate-400">
-                                        {{ $shipment->originLocation->city ?? '' }} ke {{ $shipment->destinationLocation->city ?? '' }}
+                                        {{ __(':origin to :destination', ['origin' => $shipment->originLocation->city ?? '', 'destination' => $shipment->destinationLocation->city ?? '']) }}
                                     </div>
                                 </td>
                                 <td class="px-3 py-2.5 font-mono text-xs font-semibold text-slate-800 whitespace-nowrap">
-                                    {{ $shipment->group_code }} ({{ $shipment->delay_threshold_hours }}j)
+                                    {{ __(':code (:hoursh)', ['code' => $shipment->group_code, 'hours' => $shipment->delay_threshold_hours]) }}
                                 </td>
                                 <td class="px-3 py-2.5 whitespace-nowrap">
                                     <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
@@ -350,18 +357,18 @@
                                 <td class="px-3 py-2.5 whitespace-nowrap">
                                     @if ($shipment->is_delayed)
                                         <span class="inline-flex rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 border border-rose-200">
-                                            Terlambat +{{ $shipment->delay_hours }}j
+                                            {{ __('Delayed +:hoursh', ['hours' => $shipment->delay_hours]) }}
                                         </span>
                                     @else
                                         <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-                                            Tepat Waktu
+                                            {{ __('On Time') }}
                                         </span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">Belum ada data pengiriman.</td>
+                                <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">{{ __('No shipment data yet.') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -372,12 +379,12 @@
         <div class="bg-white rounded-xl border border-slate-200 p-6">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-base font-semibold text-slate-900">Kendala Terbaru</h2>
-                    <p class="text-xs text-slate-500">Kendala operasional &amp; anomali pengiriman.</p>
+                    <h2 class="text-base font-semibold text-slate-900">{{ __('Recent Exceptions') }}</h2>
+                    <p class="text-xs text-slate-500">{{ __('Operational exceptions & shipment anomalies.') }}</p>
                 </div>
                 @if (in_array(auth()->user()->role, ['admin', 'operator'], true))
                     <a href="{{ route('exceptions.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-950 underline whitespace-nowrap shrink-0">
-                        Kelola &rarr;
+                        {{ __('Manage') }} &rarr;
                     </a>
                 @endif
             </div>
@@ -387,15 +394,15 @@
                     @php
                         $rawExStatus = strtolower((string) $exception->status);
                         $exStatusText = $exceptionStatusLabels[$rawExStatus] ?? strtoupper((string) $exception->status);
-                        $rawExType = (string) ($exception->exception_type ?? $exception->category ?? '');
-                        $exTypeText = $exceptionTypeLabels[$rawExType] ?? ($rawExType !== '' ? str_replace('_', ' ', $rawExType) : 'Kendala Operasional');
+                        $rawExType = strtoupper((string) ($exception->exception_type ?? $exception->category ?? ''));
+                        $exTypeText = $exceptionTypeLabels[$rawExType] ?? ($rawExType !== '' ? str_replace('_', ' ', $rawExType) : __('Operational Exception'));
                         $rawNotes = (string) ($exception->notes ?? $exception->description ?? '');
-                        $notesText = $exceptionNoteTranslations[$rawNotes] ?? $rawNotes;
+                        $notesText = $rawNotes !== '' ? __($rawNotes) : '';
                     @endphp
                     <div class="rounded-xl border border-slate-200 p-3.5">
                         <div class="flex items-center justify-between gap-2">
                             <span class="font-mono text-xs font-bold text-slate-900">
-                                {{ $exception->shipment->shipment_number ?? ('Pengiriman #' . $exception->shipment_id) }}
+                                {{ $exception->shipment->shipment_number ?? (__('Shipment') . ' #' . $exception->shipment_id) }}
                             </span>
                             <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap shrink-0 {{ $rawExStatus === 'open' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
                                 {{ $exStatusText }}
@@ -411,7 +418,7 @@
                         @endif
                     </div>
                 @empty
-                    <p class="text-xs text-slate-500 py-4 text-center">Tidak ada kendala terbaru.</p>
+                    <p class="text-xs text-slate-500 py-4 text-center">{{ __('No recent exceptions.') }}</p>
                 @endforelse
             </div>
         </div>
@@ -463,9 +470,9 @@
 
         const latLngs = [];
         const colorMap = {
-            ASAL: '#059669',
-            'TITIK PANTAU': '#0284c7',
-            TUJUAN: '#e11d48',
+            ORIGIN: '#059669',
+            CHECKPOINT: '#0284c7',
+            DESTINATION: '#e11d48',
         };
 
         points.forEach(function (pt) {
@@ -479,7 +486,7 @@
                 weight: 2,
                 opacity: 1,
                 fillOpacity: 0.95,
-            }).addTo(map).bindPopup('<strong>' + pt.role + '</strong><br>' + pt.label);
+            }).addTo(map).bindPopup('<strong>' + (pt.roleLabel || pt.role) + '</strong><br>' + pt.label);
         });
 
         if (latLngs.length > 1) {

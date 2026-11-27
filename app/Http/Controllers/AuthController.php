@@ -29,14 +29,14 @@ class AuthController extends Controller
 
         if (! Auth::attempt($credentials, $remember)) {
             return back()
-                ->withErrors(['email' => 'Email atau password tidak valid.'])
+                ->withErrors(['email' => __('Invalid email or password.')])
                 ->onlyInput('email');
         }
 
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'))
-            ->with('success', 'Selamat datang kembali di CargoTrace.');
+            ->with('success', __('Welcome back to CargoTrace.'));
     }
 
     public function logout(Request $request): RedirectResponse
@@ -46,6 +46,6 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')
-            ->with('success', 'Anda telah keluar dari sesi.');
+            ->with('success', __('You have been logged out.'));
     }
 }

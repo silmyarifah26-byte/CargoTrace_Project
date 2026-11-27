@@ -1,75 +1,66 @@
 @extends('layouts.app')
 
-@section('title', 'Kendala & SLA')
+@section('title', __('Exceptions & SLA'))
+@section('page-title', __('Exceptions & SLA'))
 
 @section('content')
 @php
     $exceptionTypeLabels = [
-        'WEATHER_DELAY' => 'Keterlambatan Cuaca',
-        'CUSTOMS_HOLD' => 'Penahanan Kepabeanan',
-        'DOCUMENTATION_ISSUE' => 'Kendala Dokumen',
-        'PORT_CONGESTION' => 'Kepadatan Pelabuhan',
-        'VESSEL_DELAY' => 'Keterlambatan Kapal',
+        'WEATHER_DELAY' => __('Weather Delay'),
+        'CUSTOMS_HOLD' => __('Customs Hold'),
+        'DOCUMENTATION_ISSUE' => __('Documentation Issue'),
+        'PORT_CONGESTION' => __('Port Congestion'),
+        'VESSEL_DELAY' => __('Vessel Delay'),
+        'SLA_DELAY' => __('SLA Delay'),
     ];
 
     $severityLabels = [
-        'high' => ['label' => 'TINGGI', 'class' => 'bg-rose-100 text-rose-700'],
-        'medium' => ['label' => 'SEDANG', 'class' => 'bg-amber-100 text-amber-800'],
-        'low' => ['label' => 'RENDAH', 'class' => 'bg-slate-100 text-slate-700'],
+        'critical' => ['label' => __('CRITICAL'), 'class' => 'bg-rose-100 text-rose-800'],
+        'high' => ['label' => __('HIGH'), 'class' => 'bg-rose-100 text-rose-700'],
+        'medium' => ['label' => __('MEDIUM'), 'class' => 'bg-amber-100 text-amber-800'],
+        'low' => ['label' => __('LOW'), 'class' => 'bg-slate-100 text-slate-700'],
     ];
 
     $statusLabels = [
-        'open' => 'TERBUKA',
-        'investigating' => 'INVESTIGASI',
-        'resolved' => 'SELESAI',
-        'closed' => 'DITUTUP',
-    ];
-
-    $noteTranslations = [
-        'Heavy swell conditions in North Pacific corridor.' => 'Gelombang tinggi di jalur Pasifik Utara.',
-        'Phytosanitary certificate verification requested at transshipment port.' => 'Verifikasi sertifikat fitosanitari diminta di pelabuhan transit.',
-        'Bill of Lading consignee tax ID corrected prior to arrival.' => 'NPWP penerima pada Bill of Lading telah diperbaiki sebelum kedatangan.',
+        'open' => __('OPEN'),
+        'investigating' => __('INVESTIGATING'),
+        'resolved' => __('RESOLVED'),
+        'closed' => __('CLOSED'),
     ];
 @endphp
 
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900">Kendala Pengiriman &amp; SLA</h1>
+            <h1 class="text-2xl font-bold text-slate-900">{{ __('Shipment Exceptions & SLA') }}</h1>
             <p class="text-sm text-slate-500">
-                Ambang Batas Keterlambatan — Grup A: 12j &bull; Grup B: 18j &bull; Grup C: 24j
+                {{ __('Delay Thresholds — Group A: 12h • Group B: 18h • Group C: 24h') }}
             </p>
         </div>
         <a href="{{ route('shipments.index') }}"
            class="inline-flex items-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Lihat Pengiriman
+            {{ __('View Shipments') }}
         </a>
     </div>
-
-    @if (session('success'))
-        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-            {{ session('success') }}
-        </div>
-    @endif
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     <tr>
-                        <th class="px-5 py-3.5">No. Pengiriman</th>
-                        <th class="px-5 py-3.5">Jenis &amp; Keparahan</th>
-                        <th class="px-5 py-3.5">Status</th>
-                        <th class="px-5 py-3.5">Catatan</th>
-                        <th class="px-5 py-3.5">Terdeteksi Pada</th>
-                        <th class="px-5 py-3.5 text-right">Aksi</th>
+                        <th class="px-5 py-3.5">{{ __('Shipment #') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Type & Severity') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Status') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Notes') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Detected At') }}</th>
+                        <th class="px-5 py-3.5 text-right">{{ __('Action') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($exceptions as $exc)
                         @php
                             $rawType = strtoupper((string) ($exc->exception_type ?? ''));
-                            $typeLabel = $exceptionTypeLabels[$rawType] ?? ($rawType !== '' ? str_replace('_', ' ', $rawType) : 'Kendala Operasional');
+                            $typeLabel = $exceptionTypeLabels[$rawType] ?? ($rawType !== '' ? str_replace('_', ' ', $rawType) : __('Operational Exception'));
 
                             $rawSeverity = strtolower((string) ($exc->severity ?? 'high'));
                             $sevMeta = $severityLabels[$rawSeverity] ?? [
@@ -81,7 +72,7 @@
                             $statusLabel = $statusLabels[$rawStatus] ?? strtoupper((string) $exc->status);
 
                             $rawNotes = (string) ($exc->notes ?? '');
-                            $notesText = $noteTranslations[$rawNotes] ?? $rawNotes;
+                            $notesText = $rawNotes !== '' ? __($rawNotes) : '';
                         @endphp
                         <tr class="hover:bg-slate-50/70 align-top">
                             <td class="px-5 py-4 font-semibold text-slate-900 whitespace-nowrap">
@@ -117,12 +108,12 @@
                                         @method('PATCH')
                                         <button type="submit"
                                                 class="px-3 py-1.5 rounded-lg bg-slate-950 text-white text-xs font-medium hover:bg-slate-800 cursor-pointer">
-                                            Selesaikan
+                                            {{ __('Resolve') }}
                                         </button>
                                     </form>
                                 @else
                                     <span class="text-xs text-slate-400">
-                                        Selesai {{ optional($exc->resolved_at)->format('d M Y H:i') }}
+                                        {{ __('Resolved :date', ['date' => optional($exc->resolved_at)->format('d M Y H:i') ?? '-']) }}
                                     </span>
                                 @endif
                             </td>
@@ -130,7 +121,7 @@
                     @empty
                         <tr>
                             <td colspan="6" class="px-5 py-8 text-center text-slate-500">
-                                Belum ada data kendala tercatat.
+                                {{ __('No exceptions recorded yet.') }}
                             </td>
                         </tr>
                     @endforelse

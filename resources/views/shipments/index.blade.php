@@ -1,32 +1,34 @@
 @extends('layouts.app')
 
-@section('title', 'Pengiriman & Pemantauan SLA')
+@section('title', __('Shipments & SLA Monitoring'))
+@section('page-title', __('Shipments & SLA Monitoring'))
 
 @section('content')
 <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900">Pengiriman &amp; Pemantauan SLA</h1>
+            <h1 class="text-2xl font-bold text-slate-900">{{ __('Shipments & SLA Monitoring') }}</h1>
             <p class="text-sm text-slate-500">
-                Ambang Batas Keterlambatan — Grup A: 12j &bull; Grup B: 18j &bull; Grup C: 24j
+                {{ __('Delay Thresholds — Group A: 12h • Group B: 18h • Group C: 24h') }}
             </p>
         </div>
         <a href="{{ route('notifications.index') }}"
            class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
-            Notifikasi
+            {{ __('Notifications') }}
         </a>
     </div>
 
     @php
         $statusLabels = [
-            'created' => 'Dibuat',
-            'booked' => 'Terjadwal',
-            'in_transit' => 'Dalam Perjalanan',
-            'out_for_delivery' => 'Dalam Pengantaran',
-            'delivered' => 'Terkirim',
-            'delayed' => 'Terlambat',
-            'exception' => 'Berkendala',
-            'pending' => 'Menunggu',
+            'created' => __('Created'),
+            'booked' => __('Booked'),
+            'picked_up' => __('Picked Up'),
+            'in_transit' => __('In Transit'),
+            'out_for_delivery' => __('Out for Delivery'),
+            'delivered' => __('Delivered'),
+            'delayed' => __('Delayed'),
+            'exception' => __('Exception'),
+            'pending' => __('Pending'),
         ];
     @endphp
 
@@ -35,13 +37,13 @@
         <input type="text"
                name="search"
                value="{{ request('search') }}"
-               placeholder="Cari nomor pengiriman (mis. CT-2026-A001)..."
+               placeholder="{{ __('Search shipment number (e.g., CT-2026-A001)...') }}"
                class="flex-1 rounded-lg border-slate-300 text-sm focus:border-slate-900 focus:ring-slate-900">
 
         <select name="status" class="rounded-lg border-slate-300 text-sm focus:border-slate-900 focus:ring-slate-900">
-            <option value="">Semua Status</option>
-            @foreach (['created', 'booked', 'in_transit', 'out_for_delivery', 'delivered', 'delayed', 'exception'] as $st)
-                <option value="{{ $st }}" @selected(request('status') === $st)>
+            <option value="">{{ __('All Statuses') }}</option>
+            @foreach (['created', 'booked', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'delayed', 'exception'] as $st)
+                <option value="{{ $st }}" @selected(strtolower((string) request('status')) === $st)>
                     {{ $statusLabels[$st] ?? ucwords(str_replace('_', ' ', $st)) }}
                 </option>
             @endforeach
@@ -49,7 +51,7 @@
 
         <button type="submit"
                 class="px-5 py-2 rounded-lg bg-slate-950 text-white text-sm font-medium hover:bg-slate-800 cursor-pointer">
-            Filter
+            {{ __('Filter') }}
         </button>
     </form>
 
@@ -58,12 +60,12 @@
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     <tr>
-                        <th class="px-5 py-3.5">No. Pengiriman</th>
-                        <th class="px-5 py-3.5">Kurir</th>
-                        <th class="px-5 py-3.5">Status</th>
-                        <th class="px-5 py-3.5">Grup SLA</th>
-                        <th class="px-5 py-3.5">Status SLA</th>
-                        <th class="px-5 py-3.5 text-right">Detail</th>
+                        <th class="px-5 py-3.5">{{ __('Shipment #') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Carrier') }}</th>
+                        <th class="px-5 py-3.5">{{ __('Status') }}</th>
+                        <th class="px-5 py-3.5">{{ __('SLA Group') }}</th>
+                        <th class="px-5 py-3.5">{{ __('SLA Status') }}</th>
+                        <th class="px-5 py-3.5 text-right">{{ __('Details') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -74,9 +76,9 @@
                             $statusText = $statusLabels[$rawStatus] ?? ucwords(str_replace('_', ' ', $rawStatus));
                             $slaLabel = (string) ($eval['label'] ?? '');
                             if (preg_match('/^Delayed\s*\(\+(\d+)h\)$/i', $slaLabel, $m)) {
-                                $slaText = 'Terlambat +' . $m[1] . 'j';
+                                $slaText = __('Delayed +:hoursh', ['hours' => $m[1]]);
                             } elseif (strcasecmp($slaLabel, 'On Track') === 0) {
-                                $slaText = 'Tepat Waktu';
+                                $slaText = __('On Track');
                             } else {
                                 $slaText = $slaLabel;
                             }
@@ -94,7 +96,7 @@
                                 </span>
                             </td>
                             <td class="px-5 py-4 text-slate-700">
-                                Grup {{ $eval['group_code'] }} ({{ $eval['threshold_hours'] }}j)
+                                {{ __('Group :code (:hoursh)', ['code' => $eval['group_code'], 'hours' => $eval['threshold_hours']]) }}
                             </td>
                             <td class="px-5 py-4">
                                 @if ($eval['is_breached'])
@@ -110,14 +112,14 @@
                             <td class="px-5 py-4 text-right">
                                 <a href="{{ route('shipments.show', $shipment) }}"
                                    class="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-slate-950 text-white text-xs font-medium hover:bg-slate-800">
-                                    Linimasa
+                                    {{ __('Timeline') }}
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="6" class="px-5 py-8 text-center text-slate-500">
-                                Tidak ada data pengiriman yang ditemukan.
+                                {{ __('No shipments found.') }}
                             </td>
                         </tr>
                     @endforelse

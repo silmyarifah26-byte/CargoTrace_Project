@@ -16,9 +16,10 @@
 4. [Tech Stack](#tech-stack)
 5. [Local Installation & Setup Guide](#local-installation--setup-guide)
 6. [REST API Documentation](#rest-api-documentation)
-7. [Automated Testing](#automated-testing)
-8. [Known Limitations & Future Work](#known-limitations--future-work)
-9. [Author & Course Info](#author--course-info)
+7. [Hosting & Production Deployment](#hosting--production-deployment)
+8. [Automated Testing](#automated-testing)
+9. [Known Limitations & Future Work](#known-limitations--future-work)
+10. [Author & Course Info](#author--course-info)
 
 ## Project Overview & Problem Statement
 
@@ -60,7 +61,7 @@ Maritime freight operations often face fragmented status updates, manual delay e
 
 ## System Architecture & Database ERD
 
-CargoTrace follows a layered Laravel architecture separating routes, controllers (`Web` & `Api\CargoTraceApiController`), middleware (`api.auth`), domain services (`ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`), and Eloquent models.
+CargoTrace follows a layered Laravel architecture separating routes (`routes/api.php` registered in `bootstrap/app.php`), controllers (`Web` & `Api\CargoTraceApiController`), middleware (`api.auth` via `ApiBearerAuth`, storing SHA-256 token hashes in cache under `cargotrace:api_token:{hash}`), domain services (`ShipmentLifecycleService`, `ShipmentSlaService`, `MaritimeWeatherService`), and Eloquent models.
 
 ```mermaid
 erDiagram
@@ -145,8 +146,8 @@ erDiagram
 | :--- | :--- | :--- |
 | **Framework** | Laravel | Web routes, MVC controllers, service layer, Eloquent ORM, migrations & seeders |
 | **Language** | PHP 8.2+ | Backend application logic and test suite |
-| **API Authentication** | Bearer Token (`api.auth`) | Stateless token verification via `ApiBearerAuth` middleware and cache store |
-| **Database & Testing** | Relational DB / SQLite (`:memory:`) | Application persistence and PHPUnit `RefreshDatabase` feature tests |
+| **API Authentication** | Bearer Token (`api.auth`) | SHA-256 token verification via `ApiBearerAuth` middleware and cache store (`cargotrace:api_token:{hash}`) |
+| **Database & Testing** | MySQL / SQLite (`:memory:`) | Application persistence and PHPUnit `RefreshDatabase` feature tests |
 | **Frontend Styling** | Blade & Tailwind CSS | Web UI views, layout styling, and responsive components |
 | **Interactive Mapping** | Leaflet.js & OpenStreetMap | Port markers, checkpoints, and maritime route polylines |
 | **External Weather API** | Open-Meteo | Live/cached weather data with timeout and fallback handling |
@@ -155,7 +156,7 @@ erDiagram
 
 1. Clone the repository and navigate into the project folder:
    ```bash
-   git clone [https://github.com/silmyarifah26-byte/Cargo_Trace.git](https://github.com/silmyarifah26-byte/Cargo_Trace.git)
+   git clone [https://github.com/silmyarifah26-byte/CargoTrace.git](https://github.com/silmyarifah26-byte/CargoTrace.git)
    cd Cargo_Trace
    ```
 2. Install PHP dependencies:
@@ -167,7 +168,7 @@ erDiagram
    cp .env.example .env
    php artisan key:generate
    ```
-4. Configure your database connection in `.env`, then run migrations and seeders:
+4. Configure your MySQL database and cache connection in `.env`, then run migrations and seeders:
    ```bash
    php artisan migrate --seed
    ```
@@ -201,6 +202,38 @@ Protected endpoints require the header `Authorization: Bearer <token>` and `Acce
 - `GET /api/shipments/{shipment}/exceptions` — List exceptions for a shipment
 - `POST /api/shipments/{shipment}/exceptions` — Create an exception for a shipment (`admin` / `operator`)
 - `PATCH /api/exceptions/{exception}` — Update exception status (`open`, `investigating`, `resolved`) and notes (`admin` / `operator`)
+
+### Sample Postman Payloads
+
+Login (`POST /api/login`):
+```json
+{
+  "email": "admin@cargotrace.test",
+  "password": "password"
+}
+```
+
+Create Shipment (`POST /api/shipments`):
+```json
+{
+  "shipment_number": "CT-2026-C002",
+  "carrier_id": 3,
+  "origin_location_id": 1,
+  "destination_location_id": 94,
+  "group_code": "A",
+  "cargo_type": "General Maritime Cargo",
+  "weight_kg": 1500
+}
+```
+
+## Hosting & Production Deployment
+
+1. Export the local MySQL database (`Cargo_Trace`) from XAMPP (`phpMyAdmin` or `mysqldump`) into a `.sql` backup file and import it into the production hosting database.
+2. Upload the project files to the hosting server and configure `.env` directly on the server (never commit `.env` to Git):
+   - Set `APP_ENV=production` and `APP_DEBUG=false`.
+   - Set `APP_URL` and production `DB_*` credentials.
+   - Ensure the configured cache driver (`CACHE_STORE`) works reliably so `cargotrace:api_token:{hash}` tokens remain valid across requests.
+3. Verify live endpoints (`POST /api/login`, `GET /api/shipments`, and `POST /api/shipments`) against the deployed URL before the **December 1, 2026** deadline.
 
 ## Automated Testing
 
